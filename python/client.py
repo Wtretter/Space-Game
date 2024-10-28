@@ -1,8 +1,7 @@
 import requests
 import argparse
-import json
 import sys
-import random
+from texttable import Texttable
 import re
 from models import *
 
@@ -50,17 +49,26 @@ def request(endpoint: str, data = {}):
 
 
 try:
-    ship = Ship.model_validate(request("/ship/get"))
+    request("/ship/get")
 except RequestError:
     ship_name = input("please name your vessel\n")
-    ship = Ship.model_validate(request("/ship/create", {"ship_name": ship_name}))
+    Ship.model_validate(request("/ship/create", {"ship_name": ship_name}))
 
-def printship(ship):
+def print_ship(ship):
     print("The ship ", ship.name, " is currently in sector ", ship.coords)
     print("Hull Strength: ", ship.hitpoints)
     print("Cargo: ", ship.cargo_used, "/", ship.cargo_space)
     print("Cash On Hand: ", ship.money)
 
+def print_station(station: Station):
+    print(f"you are at the station: {station.name}")
+    print(f"the goods available for sale are:")
+    table = Texttable()
+    table.set_cols_align(["l", "c", "c"])
+    table.header(["Item", "Price", "Sell "])
+    for trade_good in station.sale_goods:
+        table.add_row([trade_good.name, trade_good.buy_price, trade_good.sell_price])
+    print(table.draw())
 
 def combat_loop(ship: Ship):
     print("rounds in combat: ", ship.time_in_combat)
@@ -168,8 +176,15 @@ def non_combat_loop(ship: Ship):
 
 print("\nWelcome to space-game, here are your current stats:")
 while True:
-    ship = Ship.model_validate(request("/ship/get"))
-    printship(ship)
+    ship_document, station_document = request("/ship/get")
+
+    ship = Ship.model_validate(ship_document)
+    print_ship(ship)
+
+    if station_document:
+        station = Station.model_validate(station_document)
+        print_station(station)
+
     if ship.in_combat:
         combat_loop(ship)
     else:
