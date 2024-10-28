@@ -13,6 +13,7 @@ import uvicorn
 import security
 import json
 import random
+import utils
 
 class LoginRequest(BaseModel):
     username: str
@@ -115,18 +116,17 @@ def piracy_check(ship: Ship) -> bool:
     if ship.no_pirates:
         return False
     else:
-        return True
-        # return (
-        #     (
-        #         ship.cargo_used
-        #         + abs(ship.coords["x"])
-        #         + abs(ship.coords["y"])
-        #         + abs(ship.coords["z"])
-        #         + ship.money
-        #         - ship.attack_damage
-        #         - (ship.hitpoints - 100)
-        #     ) >= random.randint(1,10000)
-        # )
+        return (
+            (
+                ship.cargo_used
+                + abs(ship.coords["x"])
+                + abs(ship.coords["y"])
+                + abs(ship.coords["z"])
+                + ship.money
+                - ship.attack_damage
+                - (ship.hitpoints - 100)
+            ) >= random.randint(1,10000)
+        )
 
 
 
@@ -153,8 +153,6 @@ def generate_pirate(ship: Ship) -> PirateShip:
     attacker.save()
     return attacker
 
-def get_station(ship: Ship) -> Station:
-    pass
 
 def create_ship(shipname: str, username: str) -> Ship:
     user = User.model_validate(users.find_one({"username": username}))
@@ -237,10 +235,11 @@ async def handle_create_ship(request: CreateShipRequest):
     return create_ship(request.ship_name, request.token.username)
 
 
+
 @app.post("/ship/get")
 async def handle_ship_get(request: ShipRequest):
     ship = get_ship(request.token.username)
-    return ship
+    return ship, ship.station
 
 
 @app.post("/cargo/buy")
@@ -296,9 +295,6 @@ async def handle_ship_move(request: NonCombatRequest, axis: Axis, direction: Dir
         ship.coords[axis] -= 1
     if piracy_check(ship):
         generate_pirate(ship)
-    else:
-        if station_check(ship):
-            get_station(ship)
     ship.save()
     return ship
 
@@ -363,5 +359,5 @@ async def handle_fight(request: CombatRequest):
         ship.save()
     return ship
 
-
+utils.initialize_trade_goods()
 uvicorn.run(app, host = "0.0.0.0", port = 42000)

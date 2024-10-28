@@ -2,6 +2,7 @@
 - python3
     - pymongo
     - fastapi
+    - texttable
 - docker
 
 # Getting started
