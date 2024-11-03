@@ -17,8 +17,6 @@ parser.add_argument("-p", "--password", default="password")
 args = parser.parse_args()
 
 
-
-
 if args.command == "register":
     response = requests.post("http://0.0.0.0:42000/register", json={"username": args.username, "password": args.password})
     if response.status_code == 200:
@@ -46,13 +44,12 @@ def request(endpoint: str, data = {}):
     return response.json()
 
 
-
-
 try:
     request("/ship/get")
 except RequestError:
     ship_name = input("please name your vessel\n")
     Ship.model_validate(request("/ship/create", {"ship_name": ship_name}))
+
 
 def print_ship(ship):
     print("The ship ", ship.name, " is currently in sector ", ship.coords)
@@ -88,7 +85,7 @@ def combat_loop(ship: Ship):
         print("the pirate thanks you for your cooperation and jumps away\n")
 
     elif choice == "/admin/reset":
-        request("/reset")
+        request("/admin/reset")
 
     elif choice == "/nopirates":
         request("/admin/nopirates")
@@ -97,6 +94,7 @@ def combat_loop(ship: Ship):
         if (ship.time_in_combat * ship.jump_cooldown_amount) >= ship.cargo_used:
             request("/piracy/run")
         else:
+            print("your jumpdrive is not ready! Turns left until recharged: ", ((ship.cargo_used // ship.jump_cooldown_amount) - ship.time_in_combat))
             request("/piracy/dodge")
 
     elif choice == "shoot":
@@ -133,7 +131,8 @@ def non_combat_loop(ship: Ship):
         elif ship.money <= 0:
             print("no money!")
         else:
-            request("/cargo/buy")
+            goods_to_buy = input("what would you like to buy? \n").lower()
+            request("/cargo/buy", {"goods2b": goods_to_buy})
 
     elif choice == "sell":
         if ship.cargo_used <= 0:

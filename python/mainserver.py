@@ -38,7 +38,6 @@ class Direction(str, Enum):
     up = "up"
     down = "down"
 
-
 app = FastAPI()
 
 class AuthObject(BaseModel):
@@ -63,6 +62,7 @@ class AuthObject(BaseModel):
             raise AuthError("token expired, please log in again")
         return self
 
+
 class GameRequest(BaseModel):
     token: Annotated[AuthObject, AfterValidator(lambda token: token.verify())]
 
@@ -84,13 +84,10 @@ class CombatRequest(ShipRequest):
         if not self.ship.in_combat:
             raise ClientError("You are not in combat")
 
-
 class NonCombatRequest(ShipRequest):
     def on_validate(self):
         if self.ship.in_combat:
             raise ClientError("You are in combat")
-
-
 
 class CreateShipRequest(GameRequest):
     ship_name: str
@@ -105,17 +102,18 @@ class PiracyFightRequest(ShipRequest):
     attacker_firepower: int
     self_firepower: int
 
+
 def get_ship(data: str) -> Ship:
     return Ship.model_validate(ships.find_one({"$or": [{"owner": data}, {"id": data}]}))
 
 def get_pirate(data: str) -> PirateShip:
     return PirateShip.model_validate(ships.find_one({"id": data}))
 
-
 def piracy_check(ship: Ship) -> bool:
     if ship.no_pirates:
         return False
     else:
+        # return True
         return (
             (
                 ship.cargo_used
@@ -127,12 +125,6 @@ def piracy_check(ship: Ship) -> bool:
                 - (ship.hitpoints - 100)
             ) >= random.randint(1,10000)
         )
-
-
-
-def station_check(ship: Ship) -> bool:
-    return True
-
 
 def generate_pirate(ship: Ship) -> PirateShip:
     ship_danger = (ship.cargo_used + abs(ship.coords.x) + abs(ship.coords.y) + abs(ship.coords.z) + ship.attack_damage)
@@ -152,7 +144,6 @@ def generate_pirate(ship: Ship) -> PirateShip:
     ship.enemies.append(attacker.id)
     attacker.save()
     return attacker
-
 
 def create_ship(shipname: str, username: str) -> Ship:
     user = User.model_validate(users.find_one({"username": username}))
@@ -184,7 +175,6 @@ async def validation_exception_handler(request: Request, exception: ValidationEr
         content={"message": str(exception)},
     )
 
-
 @app.post("/admin/nopirates")
 async def handle_reset(request: ShipRequest):
     request.ship.no_pirates = True
@@ -193,12 +183,10 @@ async def handle_reset(request: ShipRequest):
         request.ship.enemies.remove(attacker.id)
     request.ship.save()
 
-
 @app.post("/admin/yespirates")
 async def handle_reset(request: ShipRequest):
     request.ship.no_pirates = False
     request.ship.save()
-
 
 @app.post("/admin/reset")
 async def handle_reset(request: ShipRequest):
@@ -218,7 +206,6 @@ async def register(request: RegistrationRequest):
     except pymongo.errors.DuplicateKeyError:
         raise ClientError("username not available")
 
-
 @app.post("/login")
 async def login(request: LoginRequest):
     document = users.find_one({"username": request.username})
@@ -229,31 +216,29 @@ async def login(request: LoginRequest):
     auth = AuthObject.create(username=request.username)
     return ("login successful", auth)
 
-
 @app.post("/ship/create")
 async def handle_create_ship(request: CreateShipRequest):
     return create_ship(request.ship_name, request.token.username)
-
-
 
 @app.post("/ship/get")
 async def handle_ship_get(request: ShipRequest):
     ship = get_ship(request.token.username)
     return ship, ship.station
 
-
 @app.post("/cargo/buy")
 async def cargo_buy(request: NonCombatRequest):
     ship = request.ship
+
+    goods_to_buy = TradeGoods.model_validate(goods.find_one({"name": request.data}))
+
     if ship.money <= 0:
         return "not enough money!"
     if ship.cargo_used >= ship.cargo_space:
         return "out of cargo space!"
-    ship.money -= 1
-    ship.cargo_used += 1
+    ship.money -= goods_to_buy.buy_price
+    ship.cargo.append(goods_to_buy)
     ship.save()
     return ship
-
 
 @app.post("/cargo/sell")
 async def cargo_sell(request: NonCombatRequest):
@@ -285,7 +270,6 @@ async def upgrade_cargo(request: NonCombatRequest):
     ship.save()
     return ship
 
-
 @app.post("/move/{axis}/{direction}")
 async def handle_ship_move(request: NonCombatRequest, axis: Axis, direction: Direction):
     ship = request.ship
@@ -295,8 +279,17 @@ async def handle_ship_move(request: NonCombatRequest, axis: Axis, direction: Dir
         ship.coords[axis] -= 1
     if piracy_check(ship):
         generate_pirate(ship)
+    if station_check(ship):
+        ship.at_station = True
+    else:
+        ship.at_station = False
     ship.save()
     return ship
+
+@app.post("/station/get")
+async def handle_station_get(request: NonCombatRequest):
+    ship = request.ship
+    return generate_station(ship)
 
 @app.post("/piracy/get")
 async def handle_piracy_get(request: CombatRequest):
@@ -315,7 +308,6 @@ async def handle_bribe(request: CombatRequest):
     ship.save()
     return ship
 
-
 @app.post("/piracy/run")
 async def handle_ship_move(request: CombatRequest):
     ship = get_ship(request.token.username)
@@ -329,7 +321,6 @@ async def handle_ship_move(request: CombatRequest):
     ship.save()
     return ship
 
-
 @app.post("/piracy/dodge")
 async def handle_piracy_dodge(request: CombatRequest):
     ship = get_ship(request.token.username)
@@ -338,7 +329,6 @@ async def handle_piracy_dodge(request: CombatRequest):
     ship.time_in_combat += 1
     ship.save()
     return ship
-
 
 @app.post("/piracy/fight")
 async def handle_fight(request: CombatRequest):

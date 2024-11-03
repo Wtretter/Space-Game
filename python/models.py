@@ -18,7 +18,7 @@ def generate_station_name(generator: random.Random) -> str:
 def generate_goods(generator: random.Random) -> list:
     db_goods = goods.find({})
     available_goods = []
-    for trade_good in [Goods.model_validate(trade_good) for trade_good in db_goods]:
+    for trade_good in [TradeGoods.model_validate(trade_good) for trade_good in db_goods]:
         if trade_good.rarity < generator.randint(1,100):
             available_goods.append(trade_good)
     return available_goods
@@ -52,7 +52,7 @@ class DatabaseEntry(BaseModel):
     def _id(self) -> ObjectId:
         return ObjectId(self.id)
 
-class Goods(DatabaseEntry):
+class TradeGoods(DatabaseEntry):
     name: str
     buy_price: int
     sell_price: int
@@ -63,7 +63,8 @@ class Goods(DatabaseEntry):
 
 class Station(BaseModel):
     name: str
-    sale_goods: list[Goods]
+    sale_goods: list[TradeGoods]
+
 class Ship(DatabaseEntry):
     name: str = Field(default_factory=generate_ship_name)
     owner: Optional[str] = None
