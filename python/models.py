@@ -76,7 +76,7 @@ class Ship(DatabaseEntry):
     enemies: list[str] = Field(default_factory=list)
     jump_cooldown_amount: int = 1
     time_in_combat: int = 0
-    cargo: list = Field(default_factory=list)
+    cargo: list[TradeGoods] = Field(default_factory=list)
     no_pirates: bool = False
 
     @property

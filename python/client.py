@@ -30,8 +30,10 @@ if args.command == "register":
 elif args.command == "login":
     response = requests.post("http://0.0.0.0:42000/login", json={"username": args.username, "password": args.password})
 
+
+
 if response.status_code == 200:
-    print(response.json()[0])
+    print(response.json()[1])
 else:
     print(response.content)
 
@@ -132,7 +134,7 @@ def non_combat_loop(ship: Ship):
             print("no money!")
         else:
             goods_to_buy = input("what would you like to buy? \n").lower()
-            request("/cargo/buy", {"goods2b": goods_to_buy})
+            request("/cargo/buy", {"name": goods_to_buy})
 
     elif choice == "sell":
         if ship.cargo_used <= 0:

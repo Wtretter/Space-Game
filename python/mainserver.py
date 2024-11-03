@@ -2,6 +2,7 @@ from database import users, ships, goods
 from enum import Enum
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
 from pydantic import BaseModel, Field
 from pydantic.functional_validators import AfterValidator
@@ -39,6 +40,14 @@ class Direction(str, Enum):
     down = "down"
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class AuthObject(BaseModel):
     username: str
@@ -88,6 +97,9 @@ class NonCombatRequest(ShipRequest):
     def on_validate(self):
         if self.ship.in_combat:
             raise ClientError("You are in combat")
+
+class BuyRequest(NonCombatRequest):
+    name: str
 
 class CreateShipRequest(GameRequest):
     ship_name: str
@@ -226,15 +238,18 @@ async def handle_ship_get(request: ShipRequest):
     return ship, ship.station
 
 @app.post("/cargo/buy")
-async def cargo_buy(request: NonCombatRequest):
+async def cargo_buy(request: BuyRequest):
     ship = request.ship
 
-    goods_to_buy = TradeGoods.model_validate(goods.find_one({"name": request.data}))
+    pre_valid_goods = goods.find_one({"name": request.name.title()})
+    if pre_valid_goods == None:
+        raise ClientError("good doesn't exist")
+    goods_to_buy = TradeGoods.model_validate(pre_valid_goods)
 
     if ship.money <= 0:
-        return "not enough money!"
+        raise ClientError("not enough money!")
     if ship.cargo_used >= ship.cargo_space:
-        return "out of cargo space!"
+        raise ClientError("out of cargo space!")
     ship.money -= goods_to_buy.buy_price
     ship.cargo.append(goods_to_buy)
     ship.save()
@@ -279,17 +294,13 @@ async def handle_ship_move(request: NonCombatRequest, axis: Axis, direction: Dir
         ship.coords[axis] -= 1
     if piracy_check(ship):
         generate_pirate(ship)
-    if station_check(ship):
-        ship.at_station = True
-    else:
-        ship.at_station = False
     ship.save()
     return ship
 
 @app.post("/station/get")
 async def handle_station_get(request: NonCombatRequest):
     ship = request.ship
-    return generate_station(ship)
+    return ship.station
 
 @app.post("/piracy/get")
 async def handle_piracy_get(request: CombatRequest):
@@ -348,6 +359,9 @@ async def handle_fight(request: CombatRequest):
         ship.time_in_combat += 1
         ship.save()
     return ship
+
+users.create_index("username", unique = True)
+goods.create_index("name", unique = True)
 
 utils.initialize_trade_goods()
 uvicorn.run(app, host = "0.0.0.0", port = 42000)

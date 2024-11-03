@@ -1,0 +1,95 @@
+* {
+    color: rgb(0, 183, 255);
+    font-family: "Oxygen", monospace;
+}
+
+@font-face {
+    font-family: "Jersey";
+    src: url(/Jersey25-Regular.ttf);
+}
+
+@font-face {
+    font-family: "Oxygen";
+    src: url(/OxygenMono-Regular.ttf);
+}
+
+html {
+    height: 100%;
+}
+
+body {
+    display: flex; 
+    flex-flow: column nowrap;
+    margin: 0;
+    height: 100%;
+    background-color: rgb(40, 40, 40);
+}
+
+p {
+    margin: 0;
+}
+
+.row {
+    display: flex; 
+    flex-flow: row nowrap;
+    flex: 3;
+}
+
+.ship-info, .log {
+    margin: 8px; 
+    border: 2px solid rgb(0, 150, 200);
+    border-radius: 8px;
+    padding: 8px; 
+    flex: 1;
+}
+.ship-info {
+    text-align: center;
+    display: flex;
+    flex-flow: column nowrap;
+
+}
+
+.column {
+    display: flex;
+    flex-flow: column nowrap;
+    flex: 1;
+}
+
+.column h3 {
+    font-family: "Jersey", monospace;
+    font-size: xx-large;
+    padding-left: 8px;
+    margin: 0;
+    margin-top: 12px;
+}
+
+.inputs {
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: space-around; 
+    margin: 8px; 
+    border: 2px solid rgb(0, 149, 199);
+    border-radius: 8px;
+    padding: 8px; 
+    flex: 1;
+    text-align: center;
+    align-items: center;
+}
+
+.inputs button {
+    color: white;
+    background-color: rgb(0, 64, 151);
+    padding: 4px;
+    font-size: x-large;
+    border-radius: 8px;
+    border: 2px solid rgb(100, 100, 100);
+    box-shadow: 2px 2px 2px black;
+}
+
+.inputs button:hover {
+    background-color: rgb(17, 81, 170) ;
+}
+
+.inputs button:active {
+    background-color: gray;
+}
