@@ -1,7 +1,7 @@
 import pymongo
 from pymongo.collection import Collection
 
-client = pymongo.MongoClient("mongodb://localhost:27017/")
+client = pymongo.MongoClient("mongodb://db:27017/")
 
 database = client["space-game"]
 

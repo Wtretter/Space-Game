@@ -3,6 +3,7 @@
     - pymongo
     - fastapi
     - texttable
+    - cryptography
 - docker
 
 # Getting started

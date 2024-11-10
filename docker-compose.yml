@@ -1,0 +1,17 @@
+services:
+  db:
+    image: mongo:latest 
+    volumes:
+      - "/var/space-game/db:/data/db"
+    ports:
+      - "27017:27017"
+  api:
+    build: .
+    ports:
+      - "42000:42000"
+  web-frontend:
+    image: nginx
+    volumes:
+      - "./web-frontend:/usr/share/nginx/html"
+    ports:
+      - "8080:80"
