@@ -1,3 +1,5 @@
+import {Future} from "./Async.js";
+
 const base_url = window.location.protocol+"//"+window.location.hostname+":42000";
 let token = null;
 
@@ -19,15 +21,151 @@ async function get_ship(){
     return await response.json();
 }
 
+async function move_ship(direction_input){
+    let direction;
+    let axis = direction_input[0].toLowerCase();
+
+    if (direction_input[1] == "+"){
+        direction = "up"
+    }
+    else {
+        direction = "down"
+    }
+    const response = await fetch(base_url+`/move/${axis}/${direction}`, {
+        "method": "POST",
+        "body": JSON.stringify({token: token}),
+        "headers": {"Content-Type": "application/json"}
+    });
+    return await response.json();
+}
+
+async function attack_ship(){
+    
+    const response = await fetch(base_url+`/piracy/fight`, {
+        "method": "POST",
+        "body": JSON.stringify({token: token}),
+        "headers": {"Content-Type": "application/json"}
+    });
+    return await response.json();
+}
+
+async function run_away(ship){
+    if (ship.time_in_combat * ship.jump_cooldown_amount >= ship.cargo.length) {
+        const response = await fetch(base_url+`/piracy/run`, {
+            "method": "POST",
+            "body": JSON.stringify({token: token}),
+            "headers": {"Content-Type": "application/json"}
+        });
+        return true;
+    }
+    else {
+        print_to_log("Your jumpdrive is not ready yet!")
+        const drive_cooldown = Math.floor(ship.cargo.length / ship.jump_cooldown_amount) - ship.time_in_combat
+        print_to_log(`Jumpdrive ready in ${drive_cooldown} turns`)
+        const response = await fetch(base_url+`/piracy/dodge`, {
+            "method": "POST",
+            "body": JSON.stringify({token: token}),
+            "headers": {"Content-Type": "application/json"}
+        });
+        return false;
+    }
+    
+}
+
+function print_to_log(str){
+    const log_element = document.querySelector(".log");
+    const message_element = log_element.appendChild(document.createElement("p"));
+    message_element.textContent = str;
+    log_element.scrollTo(0, log_element.scrollHeight)
+}
+
+
+function add_divider_to_log(){
+    const log_element = document.querySelector(".log");
+    const divider_element = log_element.appendChild(document.createElement("div"));
+    divider_element.classList.add("divider");
+    log_element.scrollTo(0, log_element.scrollHeight)
+}
+
 
 window.addEventListener("load", async ()=>{
     const username = localStorage.getItem("username");
     const password = localStorage.getItem("password");
     token = await login(username, password);
 
-    const [ship, station] = await get_ship();
-    const ship_info = document.querySelector(".ship-info");
+    main_loop()
+});
 
+async function combat_loop(ship) {
+    const inputs_element = document.querySelector(".inputs");
+    inputs_element.innerHTML = "";
+    const finished = new Future();
+
+    const attack_button = inputs_element.appendChild(document.createElement("button"));
+    attack_button.textContent = "Attack"
+
+    attack_button.addEventListener("click", async () => {
+        const combat_over = await attack_ship()
+        if (combat_over) {
+            print_to_log("You have won the fight")
+        }
+        finished.resolve()
+    })
+
+    const run_button = inputs_element.appendChild(document.createElement("button"));
+    run_button.textContent = "Run"
+
+    run_button.addEventListener("click", async () => {
+        const combat_over = await run_away(ship)
+        if (combat_over) {
+            print_to_log("You have escaped")
+        }
+        finished.resolve()
+    })
+
+    await finished;
+}
+
+async function non_combat_loop(ship, station) {
+    if (station != null){
+        print_to_log("there is a station in this sector")
+        print_station(station)
+    }
+
+    const inputs_element = document.querySelector(".inputs");
+    inputs_element.innerHTML = "";
+    const finished = new Future();
+
+    const move_container = inputs_element.appendChild(document.createElement("div"))
+    move_container.classList.add("move-container")
+    const move_con_top = move_container.appendChild(document.createElement("div"))
+    const move_con_bottom = move_container.appendChild(document.createElement("div"))
+
+    for (const direction of ["X+", "Y+", "Z+"]) {
+        const move_button = move_con_top.appendChild(document.createElement("button"))
+        move_button.textContent = direction;
+        move_button.addEventListener("click", async () => {
+            await move_ship(direction)
+            finished.resolve();
+        });
+    }
+    for (const direction of ["X-", "Y-", "Z-"]) {
+        const move_button = move_con_bottom.appendChild(document.createElement("button"))
+        move_button.textContent = direction
+        move_button.addEventListener("click", async () => {
+            await move_ship(direction)
+            finished.resolve();
+        });
+
+    }
+
+    await finished;
+}
+
+function print_ship(ship) {
+
+    const ship_info = document.querySelector(".ship-info");
+    ship_info.innerHTML = ""
     const name_element = ship_info.appendChild(document.createElement("p"));
     name_element.textContent = "Ship name: " + ship.name;
 
@@ -48,4 +186,29 @@ window.addEventListener("load", async ()=>{
 
     const money_element = ship_info.appendChild(document.createElement("p"));
     money_element.textContent = "Funds: " + ship.money;
-});
+}
+
+function print_station(station) {
+    print_to_log(`Station name: ${station.name}`)
+    print_to_log("Goods for sale:")
+    for (const trade_good of station.sale_goods) {
+        print_to_log(`- ${trade_good.name} for ${trade_good.buy_price}`)
+    }
+}
+
+async function main_loop(){
+    while (true) {
+        print_to_log((new Date()).toLocaleTimeString())
+        const [ship, station] = await get_ship();
+        print_ship(ship)
+        print_to_log(`You have entered sector: X:${ship.coords.x}|Y:${ship.coords.y}|Z:${ship.coords.z}`)
+        if (ship.enemies.length != 0){
+            print_to_log("You are in combat")
+            await combat_loop(ship)
+        }
+        else {
+            await non_combat_loop(ship, station)
+        }
+        add_divider_to_log()
+    }
+}

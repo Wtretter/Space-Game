@@ -32,7 +32,7 @@ p {
 .row {
     display: flex; 
     flex-flow: row nowrap;
-    flex: 3;
+    height: calc(100% - 234px);
 }
 
 .ship-info, .log {
@@ -41,6 +41,7 @@ p {
     border-radius: 8px;
     padding: 8px; 
     flex: 1;
+    overflow-y: auto;
 }
 .ship-info {
     text-align: center;
@@ -71,9 +72,13 @@ p {
     border: 2px solid rgb(0, 149, 199);
     border-radius: 8px;
     padding: 8px; 
-    flex: 1;
     text-align: center;
     align-items: center;
+    position: absolute;
+    height: 200px;
+    bottom: 0;
+    left: 0;
+    right: 0;
 }
 
 .inputs button {
@@ -92,4 +97,15 @@ p {
 
 .inputs button:active {
     background-color: gray;
+}
+
+.move-container {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+}
+
+.divider {
+    margin: 8px 0;
+    border-bottom: 1px solid rgb(86, 87, 92);
 }

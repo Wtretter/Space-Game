@@ -358,7 +358,8 @@ async def handle_fight(request: CombatRequest):
     else:
         ship.time_in_combat += 1
         ship.save()
-    return ship
+
+    return not ship.in_combat
 
 users.create_index("username", unique = True)
 goods.create_index("name", unique = True)
