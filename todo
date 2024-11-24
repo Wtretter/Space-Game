@@ -1,23 +1,10 @@
-Features
-- Make a new character, create a starting ship
-        1. upgradable ships?
-        2. better ships?
-- Purchase/Sell trade goods
-        1. stock markets/value fluctuation?
-
-
-
-Technical Details
-- Admin Tools
-
 To do:
-- Movement!
-        maps? fuel?
-        infinite rng map preferred (x, y, AND z, its SPACE)
+-maps
+-fuel
 -better cargo
--pirates! guns!
+-guns!
         cargo destruction
-        bribery/guards
+        guards
 
 ideas!
 - tiers?
