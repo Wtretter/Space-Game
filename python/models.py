@@ -68,7 +68,7 @@ class Station(BaseModel):
 class Ship(DatabaseEntry):
     name: str = Field(default_factory=generate_ship_name)
     owner: Optional[str] = None
-    attack_damage: int = 0
+    attack_damage: int = 3
     hitpoints: int = 100
     cargo_space: int = 10
     money: int = 10

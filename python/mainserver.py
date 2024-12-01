@@ -210,6 +210,10 @@ async def handle_reset(request: ShipRequest):
         request.ship.enemies.remove(attacker.id)
     request.ship.save()
 
+@app.post("/status")
+async def get_status(request: GameRequest):
+    return "success"
+
 @app.post("/register")
 async def register(request: RegistrationRequest):
     try:
@@ -226,6 +230,7 @@ async def login(request: LoginRequest):
     if not security.verify_hash(request.password, document["hashed_password"]):
         raise AuthError("Incorrect username or password2")
     auth = AuthObject.create(username=request.username)
+    print(auth)
     return ("login successful", auth)
 
 @app.post("/ship/create")

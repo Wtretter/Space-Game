@@ -3,23 +3,39 @@ import {Future} from "./Async.js";
 const base_url = window.location.protocol+"//"+window.location.hostname+":42000";
 let token = null;
 
-async function login(username, password) {
-    const response = await fetch(base_url+"/login", {
-        "method": "POST",
-        "body": JSON.stringify({username: username, password: password}),
-        "headers": {"Content-Type": "application/json"}
-    });
-    return (await response.json())[1];
-}
+
 
 async function get_ship(){
-    const response = await fetch(base_url+"/ship/get", {
-        "method": "POST",
-        "body": JSON.stringify({token: token}),
-        "headers": {"Content-Type": "application/json"}
-    });
-    return await response.json();
-}
+    try {
+        const response = await fetch(base_url+"/ship/get", {
+            "method": "POST",
+            "body": JSON.stringify({token: token}),
+            "headers": {"Content-Type": "application/json"}
+        });
+        if (response.status != 200){
+            return null
+        }
+        return await response.json();
+    } catch {
+        return null;
+    }
+} 
+
+async function get_status(){
+    try {
+        const response = await fetch(base_url+"/status", {
+            "method": "POST",
+            "body": JSON.stringify({token: token}),
+            "headers": {"Content-Type": "application/json"}
+        });
+        if (response.status != 200){
+            return null
+        }
+        return await response.json();
+    } catch {
+        return null;
+    }
+} 
 
 async function move_ship(direction_input){
     let direction;
@@ -88,11 +104,27 @@ function add_divider_to_log(){
 }
 
 
-window.addEventListener("load", async ()=>{
-    const username = localStorage.getItem("username");
-    const password = localStorage.getItem("password");
-    token = await login(username, password);
 
+window.addEventListener("load", async ()=>{
+    try {
+        token = JSON.parse(localStorage.getItem("token"));
+    } catch {
+        location.replace("/login.html");
+        return;
+    }
+    if (!token || await get_status() != "success") {
+        location.replace("/login.html");
+        return;
+    }
+    if (!await get_ship()){
+        location.replace("/shipyard.html");
+        return;
+    }
+    const logout_button = document.querySelector(".logout")
+    logout_button.addEventListener("click", async () => {
+        localStorage.removeItem("token");
+        location.replace("/login.html");
+    })
     main_loop()
 });
 
@@ -197,6 +229,7 @@ function print_station(station) {
 }
 
 async function main_loop(){
+    console.log("starting main loop")
     while (true) {
         print_to_log((new Date()).toLocaleTimeString())
         const [ship, station] = await get_ship();
