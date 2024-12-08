@@ -3,6 +3,7 @@ import {Future} from "./Async.js";
 const base_url = window.location.protocol+"//"+window.location.hostname+":42000";
 let token = null;
 
+console.log("BASE URL", base_url);
 
 
 async function get_ship(){

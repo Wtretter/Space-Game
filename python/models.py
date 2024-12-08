@@ -8,8 +8,7 @@ from enum import Enum
 import random
 
 
-
-class DamageType(Enum):
+class DamageType(str, Enum):
     LASER="Laser"
     KINETIC="Kinetic"
     EXPLOSIVE="Explosive"
@@ -69,15 +68,13 @@ class InventoryItem(DatabaseEntry):
     installed: bool = False
     # weapon attributes
     is_weapon: bool = False
-    damage_type: DamageType = None
+    damage_type: Optional[DamageType] = None
     damage: float = 0.0
     cooldown: float = 0.0
     ammo_cost: int = 0
-    ammo_type: str = None
+    ammo_type: Optional[str] = None
     energy_cost: float = 0.0
     # TODO: defensive attributes
-
-    
 
     def save(self):
         goods.update_one({"_id": self._id}, {"$set": self.model_dump()}, upsert=True)

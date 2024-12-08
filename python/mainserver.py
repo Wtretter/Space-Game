@@ -159,7 +159,14 @@ def generate_pirate(ship: Ship) -> PirateShip:
 
 def create_ship(shipname: str, username: str) -> Ship:
     user = User.model_validate(users.find_one({"username": username}))
-    ship = Ship(name=shipname, owner=username, cargo=[InventoryItem.model_validate(goods.find_one({"name": "Mining Laser"}))])
+    laser_document = goods.find_one({"name": "Mining Laser"})
+    print(laser_document)
+    try:
+        InventoryItem.model_validate(laser_document)
+    except Exception as e:
+        print("AAAAAAAAAAAAAAAAAA", e)
+        raise
+    ship = Ship(name=shipname, owner=username, cargo=[])
     ship.save()
     user.ship_id = ship.id
     user.save()
