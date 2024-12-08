@@ -159,7 +159,7 @@ def generate_pirate(ship: Ship) -> PirateShip:
 
 def create_ship(shipname: str, username: str) -> Ship:
     user = User.model_validate(users.find_one({"username": username}))
-    ship = Ship(name=shipname, owner=username)
+    ship = Ship(name=shipname, owner=username, cargo=[InventoryItem.model_validate(goods.find_one({"name": "Mining Laser"}))])
     ship.save()
     user.ship_id = ship.id
     user.save()
@@ -249,7 +249,7 @@ async def cargo_buy(request: BuyRequest):
     pre_valid_goods = goods.find_one({"name": request.name.title()})
     if pre_valid_goods == None:
         raise ClientError("good doesn't exist")
-    goods_to_buy = TradeGoods.model_validate(pre_valid_goods)
+    goods_to_buy = InventoryItem.model_validate(pre_valid_goods)
 
     if ship.money <= 0:
         raise ClientError("not enough money!")

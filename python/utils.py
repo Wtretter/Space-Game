@@ -1,4 +1,4 @@
-from models import TradeGoods, Position
+from models import InventoryItem, Position
 from database import goods
 import json
 
@@ -9,11 +9,9 @@ def initialize_trade_goods():
         goods_doc = json.load(goods_file)
 
     for name, trade_good in goods_doc.items():
-        new_good = TradeGoods(
+        new_good = InventoryItem(
             name=name,
-            buy_price=trade_good["buy_price"],
-            sell_price=trade_good["sell_price"],
-            rarity=trade_good["rarity"]
+            **trade_good,
         )
         new_good.save()
 

@@ -1,4 +1,4 @@
-from models import TradeGoods
+from models import InventoryItem
 import json
 
 
@@ -9,15 +9,15 @@ while True:
     rarity = input("rarity: ")
     confirmation = input(f"Confirm you would like to add {goods_name} at a buy price of {buy_price}, a sell price of {sell_price}, and a rarity of {rarity} Y/N\n").lower()
     if confirmation == "y":
-        trade_good = TradeGoods(name=goods_name, buy_price=buy_price, sell_price=sell_price, rarity=rarity)
+        trade_good = InventoryItem(name=goods_name, buy_price=buy_price, sell_price=sell_price, rarity=rarity)
 
         with open("../goods.json") as goods_file:
             goods_doc = json.load(goods_file)
 
-        goods_list: list[TradeGoods] = [trade_good]
+        goods_list: list[InventoryItem] = [trade_good]
 
         for name, trade_good in goods_doc.items():
-            new_good = TradeGoods(
+            new_good = InventoryItem(
                 name=name,
                 buy_price=trade_good["buy_price"],
                 sell_price=trade_good["sell_price"],

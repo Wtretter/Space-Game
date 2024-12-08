@@ -4,8 +4,16 @@ from pydantic import BaseModel, Field
 from bson import ObjectId
 from typing import Annotated, Optional
 from pydantic.functional_validators import BeforeValidator
+from enum import Enum
 import random
 
+
+
+class DamageType(Enum):
+    LASER="Laser"
+    KINETIC="Kinetic"
+    EXPLOSIVE="Explosive"
+    EMP="EMP"
 
 def generate_ship_name() -> str:
     ship_names = ("testpirate1", "testpirate2", "testpirate3")
@@ -18,7 +26,7 @@ def generate_station_name(generator: random.Random) -> str:
 def generate_goods(generator: random.Random) -> list:
     db_goods = goods.find({})
     available_goods = []
-    for trade_good in [TradeGoods.model_validate(trade_good) for trade_good in db_goods]:
+    for trade_good in [InventoryItem.model_validate(trade_good) for trade_good in db_goods]:
         if trade_good.rarity < generator.randint(1,100):
             available_goods.append(trade_good)
     return available_goods
@@ -52,23 +60,36 @@ class DatabaseEntry(BaseModel):
     def _id(self) -> ObjectId:
         return ObjectId(self.id)
 
-class TradeGoods(DatabaseEntry):
+class InventoryItem(DatabaseEntry):
+    # common attributes
     name: str
     buy_price: int
     sell_price: int
     rarity: int
+    installed: bool = False
+    # weapon attributes
+    is_weapon: bool = False
+    damage_type: DamageType = None
+    damage: float = 0.0
+    cooldown: float = 0.0
+    ammo_cost: int = 0
+    ammo_type: str = None
+    energy_cost: float = 0.0
+    # TODO: defensive attributes
+
+    
 
     def save(self):
         goods.update_one({"_id": self._id}, {"$set": self.model_dump()}, upsert=True)
 
+
 class Station(BaseModel):
     name: str
-    sale_goods: list[TradeGoods]
+    sale_goods: list[InventoryItem]
 
 class Ship(DatabaseEntry):
     name: str = Field(default_factory=generate_ship_name)
     owner: Optional[str] = None
-    attack_damage: int = 3
     hitpoints: int = 100
     cargo_space: int = 10
     money: int = 10
@@ -76,8 +97,9 @@ class Ship(DatabaseEntry):
     enemies: list[str] = Field(default_factory=list)
     jump_cooldown_amount: int = 1
     time_in_combat: int = 0
-    cargo: list[TradeGoods] = Field(default_factory=list)
+    cargo: list[InventoryItem] = Field(default_factory=list)
     no_pirates: bool = False
+    energy: int = 10
 
     @property
     def station(self) -> Station | None:

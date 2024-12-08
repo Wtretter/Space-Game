@@ -43,5 +43,23 @@
     "buy_price": 1,
     "sell_price": 1,
     "rarity": 100
+  },
+  "Mining Laser": {
+    "buy_price": 2,
+    "sell_price": 1,
+    "rarity": 5,
+    "damage_type": "Laser",
+    "damage": 2.5,
+    "cooldown": 1.0,
+    "energy_cost": 5.0
+  },
+  "Military Laser": {
+    "buy_price": 30,
+    "sell_price": 25,
+    "rarity": 70,
+    "damage_type": "Laser",
+    "damage": 25.0,
+    "cooldown": 5.0,
+    "energy_cost": 20.0
   }
 }
