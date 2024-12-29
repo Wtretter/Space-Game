@@ -125,7 +125,7 @@ def piracy_check(ship: Ship) -> bool:
     if ship.no_pirates:
         return False
     else:
-        # return True
+        return True
         return (
             (
                 ship.cargo_used
@@ -139,19 +139,23 @@ def piracy_check(ship: Ship) -> bool:
         )
 
 def generate_pirate(ship: Ship) -> PirateShip:
-    ship_danger = (ship.cargo_used + abs(ship.coords.x) + abs(ship.coords.y) + abs(ship.coords.z) + ship.attack_damage)
+    ship_danger = (ship.cargo_used + abs(ship.coords.x) + abs(ship.coords.y) + abs(ship.coords.z))
     if ship_danger <= 250:
         # low level pirate
-        attacker = PirateShip(attack_damage=5, hitpoints=25, bravery=random.randint(5,30), bribe=.05)
+        attacker = PirateShip(hitpoints=25, bravery=random.randint(5,30), bribe=.05)
     elif ship_danger <= 1000:
         # mid level pirate
-        attacker = PirateShip(attack_damage=15, hitpoints=250, bravery=random.randint(25,500), bribe=.35)
+        attacker = PirateShip(hitpoints=250, bravery=random.randint(25,500), bribe=.35)
     elif ship_danger <= 10000:
         # high level pirate
-        attacker = PirateShip(attack_damage=35, hitpoints=400, bravery=random.randint(75,1000), bribe=.75)
+        attacker = PirateShip(hitpoints=400, bravery=random.randint(75,1000), bribe=.75)
     else:
         # you are either too dangerous or too far out to attack
-        attacker = PirateShip(attack_damage=0, hitpoints=0, bravery=0, bribe=0)
+        attacker = PirateShip(hitpoints=0, bravery=0, bribe=0)
+
+    laser_document = goods.find_one({"name": "Mining Laser"})
+    starter_laser = InventoryItem.model_validate(laser_document)
+    attacker.installed_items.append(starter_laser)
 
     ship.enemies.append(attacker.id)
     attacker.save()
@@ -160,13 +164,8 @@ def generate_pirate(ship: Ship) -> PirateShip:
 def create_ship(shipname: str, username: str) -> Ship:
     user = User.model_validate(users.find_one({"username": username}))
     laser_document = goods.find_one({"name": "Mining Laser"})
-    print(laser_document)
-    try:
-        InventoryItem.model_validate(laser_document)
-    except Exception as e:
-        print("AAAAAAAAAAAAAAAAAA", e)
-        raise
-    ship = Ship(name=shipname, owner=username, cargo=[])
+    starter_laser = InventoryItem.model_validate(laser_document)
+    ship = Ship(name=shipname, owner=username, installed_items=[starter_laser])
     ship.save()
     user.ship_id = ship.id
     user.save()
@@ -334,44 +333,59 @@ async def handle_bribe(request: CombatRequest):
 @app.post("/piracy/run")
 async def handle_ship_move(request: CombatRequest):
     ship = get_ship(request.token.username)
-    if ship.time_in_combat * ship.jump_cooldown_amount < ship.cargo_used:
-        raise ClientError("your jumpdrive is not ready")
+    #  TODO: fix running away
     for attacker in [get_pirate(id) for id in ship.enemies]:
         attacker.delete()
-    ship.time_in_combat = 0
+
     ship.enemies = []
     ship.coords[random.choice([Axis.x, Axis.y, Axis.z])] += random.choice([1, -1])
     ship.save()
     return ship
 
-@app.post("/piracy/dodge")
-async def handle_piracy_dodge(request: CombatRequest):
-    ship = get_ship(request.token.username)
-    for attacker in [get_pirate(id) for id in ship.enemies]:
-        ship.hitpoints -= int((2 * attacker.attack_damage) / random.randint(2,10))
-    ship.time_in_combat += 1
-    ship.save()
-    return ship
 
 @app.post("/piracy/fight")
 async def handle_fight(request: CombatRequest):
     ship = get_ship(request.token.username)
-    for attacker in [get_pirate(id) for id in ship.enemies]:
-        ship.hitpoints -= int(attacker.attack_damage / random.randint(1,3))
-        attacker.hitpoints -= int(ship.attack_damage / random.randint(1,3))
-        if attacker.hitpoints <= 0:
-            ship.enemies.remove(attacker.id)
-            attacker.delete()
-        else:
-            attacker.save()
-    if ship.hitpoints <= 0:
-        ship.delete()
-        ship = create_ship(ship.name, request.token.username)
-    else:
-        ship.time_in_combat += 1
-        ship.save()
+    log: list[LogEvent] = []
+    fight_items: list[FightItem] = []
+    attackers: list[PirateShip] = [get_pirate(id) for id in ship.enemies]
+    for attacker in attackers:
+        for item in attacker.installed_items:
+            fight_items.append(FightItem(ship=attacker, item=item))
+    for item in ship.installed_items:
+        fight_items.append(FightItem(ship=ship, item=item))
+    while True:
+        for fight_item in fight_items:
+            if fight_item.cooldown == 0.0:
+                log.append(LogEvent(type=EventType.ITEM_USED, contents=fight_item.item.id))
+                fight_item.use(ship, attackers, log)
+                fight_item.cooldown = fight_item.item.cooldown
+        
+        for attacker in attackers:
+            if attacker.hitpoints <= 0:
+                ship.enemies.remove(attacker.id)
+                log.append(LogEvent(type=EventType.SHIP_DESTROYED, contents=attacker.id))
+                fight_items = [fight_item for fight_item in fight_items if fight_item.ship != attacker]
+                attacker.delete()
 
-    return not ship.in_combat
+        if ship.hitpoints <= 0:
+            log.append(LogEvent(type=EventType.SHIP_DESTROYED, contents=ship.id))
+            ship.delete()
+            users.update_one({"username": request.token.username}, {"$inc":{"lost_ships":1}})
+            ship = create_ship(ship.name, request.token.username)
+            break
+
+        if not ship.enemies:
+            break
+        fight_items.sort(key=lambda item: item.cooldown)
+        time_elapsed = fight_items[0].cooldown
+        for fight_item in fight_items:
+            fight_item.cooldown -= time_elapsed
+        log.append(LogEvent(type=EventType.TIME_PASSED, contents=time_elapsed))        
+    ship.save()
+    return log
+
+
 
 users.create_index("username", unique = True)
 goods.create_index("name", unique = True)

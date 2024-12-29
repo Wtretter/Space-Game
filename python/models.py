@@ -2,7 +2,7 @@ from __future__ import annotations
 from database import ships, users, goods
 from pydantic import BaseModel, Field
 from bson import ObjectId
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Any
 from pydantic.functional_validators import BeforeValidator
 from enum import Enum
 import random
@@ -13,6 +13,12 @@ class DamageType(str, Enum):
     KINETIC="Kinetic"
     EXPLOSIVE="Explosive"
     EMP="EMP"
+
+class EventType(str, Enum):
+    SHIP_DESTROYED="Ship Destroyed"
+    ITEM_USED="Item Used"
+    TIME_PASSED="Time Passed"
+    DAMAGE_TAKEN="Damage Taken"
 
 def generate_ship_name() -> str:
     ship_names = ("testpirate1", "testpirate2", "testpirate3")
@@ -58,6 +64,10 @@ class DatabaseEntry(BaseModel):
     @property
     def _id(self) -> ObjectId:
         return ObjectId(self.id)
+    
+class LogEvent(BaseModel):
+    type: EventType
+    contents: Any
 
 class InventoryItem(DatabaseEntry):
     # common attributes
@@ -79,6 +89,18 @@ class InventoryItem(DatabaseEntry):
     def save(self):
         goods.update_one({"_id": self._id}, {"$set": self.model_dump()}, upsert=True)
 
+class FightItem(BaseModel):
+    ship: Ship
+    item: InventoryItem
+    cooldown: float = 0.0
+
+    def use(self, ship: Ship, attackers: list[PirateShip], log: list[LogEvent]):
+        if self.ship == ship:
+            target = random.choice(attackers)
+        else:
+            target = ship
+        target.hitpoints -= self.item.damage
+        log.append(LogEvent(type=EventType.DAMAGE_TAKEN, contents=(target.id, self.item.damage)))
 
 class Station(BaseModel):
     name: str
@@ -87,14 +109,16 @@ class Station(BaseModel):
 class Ship(DatabaseEntry):
     name: str = Field(default_factory=generate_ship_name)
     owner: Optional[str] = None
-    hitpoints: int = 100
+    hitpoints: float = 100.0
     cargo_space: int = 10
+    install_space: int = 2
     money: int = 10
     coords: Position = Field(default_factory=Position)
     enemies: list[str] = Field(default_factory=list)
-    jump_cooldown_amount: int = 1
-    time_in_combat: int = 0
+    jump_cooldown_amount: float = 5.0
+
     cargo: list[InventoryItem] = Field(default_factory=list)
+    installed_items: list[InventoryItem] = Field(default_factory=list)
     no_pirates: bool = False
     energy: int = 10
 
@@ -115,6 +139,10 @@ class Ship(DatabaseEntry):
     @property
     def cargo_used(self) -> int:
         return len(self.cargo)
+
+    @property
+    def install_space_used(self) -> int:
+        return len(self.installed_items)
 
     def save(self):
         ships.update_one({"_id": self._id}, {"$set": self.model_dump()}, upsert=True)

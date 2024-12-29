@@ -1,4 +1,4 @@
-import {Future} from "./Async.js";
+import {Future, Sleep} from "./Async.js";
 
 const base_url = window.location.protocol+"//"+window.location.hostname+":42000";
 let token = null;
@@ -59,6 +59,17 @@ async function move_ship(direction_input){
 async function attack_ship(){
     
     const response = await fetch(base_url+`/piracy/fight`, {
+        "method": "POST",
+        "body": JSON.stringify({token: token}),
+        "headers": {"Content-Type": "application/json"}
+    });
+    return await response.json();
+}
+
+
+async function get_enemies(){
+    
+    const response = await fetch(base_url+`/piracy/get`, {
         "method": "POST",
         "body": JSON.stringify({token: token}),
         "headers": {"Content-Type": "application/json"}
@@ -129,6 +140,31 @@ window.addEventListener("load", async ()=>{
     main_loop()
 });
 
+
+async function display_combat(ship, enemies, log) {
+    let current_time = 0
+    const ships_by_id = {
+        [ship.id]: ship.name
+    }
+    for (const attacker of enemies) {
+        console.log(attacker)
+        ships_by_id[attacker.id] = attacker.name
+    }
+    for (const event of log) {
+        if (event.type == "Time Passed") {
+            current_time += event.contents
+            await Sleep(event.contents * 1000)
+        } else if (event.type == "Damage Taken") {
+            const [id, amount] = event.contents
+            print_to_log(`${current_time.toFixed(2)}s ${ships_by_id[id]} took ${amount} damage`)
+        }
+        
+        else {
+            print_to_log(`${event.type} - ${event.contents}`)
+        }
+    }
+}
+
 async function combat_loop(ship) {
     const inputs_element = document.querySelector(".inputs");
     inputs_element.innerHTML = "";
@@ -138,10 +174,10 @@ async function combat_loop(ship) {
     attack_button.textContent = "Attack"
 
     attack_button.addEventListener("click", async () => {
-        const combat_over = await attack_ship()
-        if (combat_over) {
-            print_to_log("You have won the fight")
-        }
+        inputs_element.innerHTML = "";
+        const enemies = await get_enemies()
+        const log = await attack_ship()
+        await display_combat(ship, enemies, log)
         finished.resolve()
     })
 
@@ -149,6 +185,7 @@ async function combat_loop(ship) {
     run_button.textContent = "Run"
 
     run_button.addEventListener("click", async () => {
+        inputs_element.innerHTML = "";
         const combat_over = await run_away(ship)
         if (combat_over) {
             print_to_log("You have escaped")
