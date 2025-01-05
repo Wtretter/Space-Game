@@ -1,6 +1,6 @@
 from __future__ import annotations
 from database import ships, users, goods
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, AliasChoices
 from bson import ObjectId
 from typing import Annotated, Optional, Any
 from pydantic.functional_validators import BeforeValidator
@@ -40,8 +40,11 @@ def get_station(generator: random.Random) -> Station:
     station = Station(name=generate_station_name(generator), sale_goods=generate_goods(generator))
     return station
 
-def entry_id_validator(value: ObjectId):
-    return value.binary.hex()
+def entry_id_validator(value: ObjectId | str):
+    if isinstance(value, str):
+        return value
+    else:
+        return value.binary.hex()
 
 class Position(BaseModel):
     x: int = 0
@@ -59,7 +62,10 @@ class Position(BaseModel):
         return self.x.to_bytes(8, "big", signed=True) + self.y.to_bytes(8, "big", signed=True) + self.z.to_bytes(8, "big", signed=True)
 
 class DatabaseEntry(BaseModel):
-    id: Annotated[str, BeforeValidator(entry_id_validator)] = Field(default_factory=lambda: ObjectId().binary.hex(), validation_alias="_id")
+    id: Annotated[str, BeforeValidator(entry_id_validator)] = Field(
+        default_factory=lambda: ObjectId().binary.hex(),
+        validation_alias=AliasChoices("_id", "id")
+    )
 
     @property
     def _id(self) -> ObjectId:
@@ -99,8 +105,9 @@ class FightItem(BaseModel):
             target = random.choice(attackers)
         else:
             target = ship
-        target.hitpoints -= self.item.damage
-        log.append(LogEvent(type=EventType.DAMAGE_TAKEN, contents=(target.id, self.item.damage)))
+        attack_damage = (self.item.damage * (random.randint(75,125) / 100))
+        target.hitpoints -= attack_damage
+        log.append(LogEvent(type=EventType.DAMAGE_TAKEN, contents=(target.id, attack_damage)))
 
 class Station(BaseModel):
     name: str

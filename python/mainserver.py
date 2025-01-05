@@ -354,6 +354,8 @@ async def handle_fight(request: CombatRequest):
             fight_items.append(FightItem(ship=attacker, item=item))
     for item in ship.installed_items:
         fight_items.append(FightItem(ship=ship, item=item))
+    for fight_item in fight_items:
+        print(fight_item)
     while True:
         for fight_item in fight_items:
             if fight_item.cooldown == 0.0:

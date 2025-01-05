@@ -20,6 +20,8 @@ async function register(username, password) {
 
 
 window.addEventListener("load", async ()=>{
+    document.querySelector(".username").focus()
+    /** @type {HTMLButtonElement} */
     const login_button = document.querySelector(".login");
     const register_button = document.querySelector(".register");
     login_button.addEventListener("click", async () => {
@@ -35,4 +37,11 @@ window.addEventListener("load", async ()=>{
         const token = await register(username, password)
         location.reload();
     });
+    /** @type {HTMLInputElement} */
+    const password_field = document.querySelector(".password");
+    const thing = password_field.addEventListener("keypress", (ev) => {
+        if (ev.key == "Enter") {
+            login_button.click()
+        }
+    })
 });

@@ -100,6 +100,13 @@ async function run_away(ship){
     
 }
 
+function print_newline_to_log() {
+    const log_element = document.querySelector(".log");
+    const message_element = log_element.appendChild(document.createElement("p"));
+    message_element.innerHTML = "&nbsp";
+    log_element.scrollTo(0, log_element.scrollHeight)
+}
+
 function print_to_log(str){
     const log_element = document.querySelector(".log");
     const message_element = log_element.appendChild(document.createElement("p"));
@@ -146,19 +153,30 @@ async function display_combat(ship, enemies, log) {
     const ships_by_id = {
         [ship.id]: ship.name
     }
+    const items_by_id = {}
+    for (const item of ship.installed_items) {
+        items_by_id[item.id] = [item.name, ship]
+    }
     for (const attacker of enemies) {
-        console.log(attacker)
         ships_by_id[attacker.id] = attacker.name
+        for (const item of attacker.installed_items) {
+            items_by_id[item.id] = [item.name, attacker]
+        }
     }
     for (const event of log) {
         if (event.type == "Time Passed") {
             current_time += event.contents
             await Sleep(event.contents * 1000)
         } else if (event.type == "Damage Taken") {
-            const [id, amount] = event.contents
-            print_to_log(`${current_time.toFixed(2)}s ${ships_by_id[id]} took ${amount} damage`)
+            let [id, amount] = event.contents
+            amount = +amount.toFixed(2)
+            print_to_log(`${ships_by_id[id]} took ${amount} damage`)
+        } else if (event.type == "Item Used") {
+            const [name, ship] = items_by_id[event.contents]
+            print_newline_to_log()
+            print_to_log(`${current_time.toFixed(2)}s ${ship.name} used ${name}`)
         }
-        
+
         else {
             print_to_log(`${event.type} - ${event.contents}`)
         }
@@ -241,10 +259,9 @@ function print_ship(ship) {
 
     const coords_element = ship_info.appendChild(document.createElement("p"));
     coords_element.textContent = `Coords: X:${ship.coords.x} | Y:${ship.coords.y} | Z:${ship.coords.z}`
-    console.log(ship.coords)
 
     const hp_element = ship_info.appendChild(document.createElement("p"));
-    hp_element.textContent = "Hull: " + ship.hitpoints;
+    hp_element.textContent = "Hull: " + +ship.hitpoints.toFixed(2);
 
     const cargo_label = ship_info.appendChild(document.createElement("p"));
     cargo_label.textContent = "Cargo: " + ship.cargo.length + "/" + ship.cargo_space;
