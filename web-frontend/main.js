@@ -77,6 +77,12 @@ async function get_enemies(){
     return await response.json();
 }
 
+function error(string) {
+    print_newline_to_log()
+    print_to_log(`*${string}*`)
+
+}
+
 async function run_away(ship){
     if (ship.time_in_combat * ship.jump_cooldown_amount >= ship.cargo.length) {
         const response = await fetch(base_url+`/piracy/run`, {
@@ -100,6 +106,14 @@ async function run_away(ship){
     
 }
 
+
+async function buy(name) {
+    const response = await fetch(base_url+`/cargo/buy`, {
+        "method": "POST",
+        "body": JSON.stringify({token: token, name: name}),
+        "headers": {"Content-Type": "application/json"}
+    });    
+}
 function print_newline_to_log() {
     const log_element = document.querySelector(".log");
     const message_element = log_element.appendChild(document.createElement("p"));
@@ -175,6 +189,11 @@ async function display_combat(ship, enemies, log) {
             const [name, ship] = items_by_id[event.contents]
             print_newline_to_log()
             print_to_log(`${current_time.toFixed(2)}s ${ship.name} used ${name}`)
+        } else if (event.type == "Ship Destroyed") {
+            const dead_ship = ships_by_id[event.contents]
+            print_newline_to_log()
+            print_to_log(`${event.type} - ${dead_ship}`)
+
         }
 
         else {
@@ -204,25 +223,67 @@ async function combat_loop(ship) {
 
     run_button.addEventListener("click", async () => {
         inputs_element.innerHTML = "";
-        const combat_over = await run_away(ship)
+        const combat_over = await run_away(ship);
         if (combat_over) {
             print_to_log("You have escaped")
         }
-        finished.resolve()
+        finished.resolve();
     })
 
     await finished;
 }
 
 async function non_combat_loop(ship, station) {
-    if (station != null){
-        print_to_log("there is a station in this sector")
-        print_station(station)
-    }
-
     const inputs_element = document.querySelector(".inputs");
     inputs_element.innerHTML = "";
+
     const finished = new Future();
+   
+    if (station != null){
+        print_to_log("there is a station in this sector");
+        print_station(station);
+        const station_container = inputs_element.appendChild(document.createElement("div"));
+        station_container.classList.add("station-container");
+        const buy_button = station_container.appendChild(document.createElement("button"));
+        buy_button.classList.add("buy");
+        buy_button.textContent = "Buy";
+        buy_button.addEventListener("click", async () => {
+            const buy_window = document.body.appendChild(document.createElement("div"));
+            buy_window.classList.add("popup");
+            for (const buy_item of station.sale_goods) {
+                const item_button = buy_window.appendChild(document.createElement("button"))
+                item_button.textContent = `${buy_item.name} for $${buy_item.buy_price}`
+                item_button.addEventListener("click", async () => {
+                    if (ship.money < buy_item.buy_price) {
+                        error("Insufficient Funds")
+                    } else {
+                        buy(buy_item.name)
+                    }
+                });
+            }
+
+            const exit_button = buy_window.appendChild(document.createElement("button"));
+            exit_button.classList.add("exit");
+            exit_button.textContent = "Cancel";
+            exit_button.addEventListener("click", async () => {
+                buy_window.remove();
+                finished.resolve();
+            });
+        });
+
+        const sell_button = station_container.appendChild(document.createElement("button"))
+        sell_button.classList.add("sell")
+        sell_button.textContent = "Sell";
+        sell_button.addEventListener("click", async () => {
+        });
+
+        const upgrade_button = station_container.appendChild(document.createElement("button"))
+        upgrade_button.classList.add("upgrade")
+        upgrade_button.textContent = "Upgrade";
+        upgrade_button.addEventListener("click", async () => {
+        });    
+    }
+
 
     const move_container = inputs_element.appendChild(document.createElement("div"))
     move_container.classList.add("move-container")

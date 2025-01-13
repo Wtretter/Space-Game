@@ -125,7 +125,7 @@ def piracy_check(ship: Ship) -> bool:
     if ship.no_pirates:
         return False
     else:
-        return True
+        # return True
         return (
             (
                 ship.cargo_used
@@ -133,7 +133,6 @@ def piracy_check(ship: Ship) -> bool:
                 + abs(ship.coords["y"])
                 + abs(ship.coords["z"])
                 + ship.money
-                - ship.attack_damage
                 - (ship.hitpoints - 100)
             ) >= random.randint(1,10000)
         )
@@ -252,7 +251,7 @@ async def handle_ship_get(request: ShipRequest):
 async def cargo_buy(request: BuyRequest):
     ship = request.ship
 
-    pre_valid_goods = goods.find_one({"name": request.name.title()})
+    pre_valid_goods = goods.find_one({"name": request.name})
     if pre_valid_goods == None:
         raise ClientError("good doesn't exist")
     goods_to_buy = InventoryItem.model_validate(pre_valid_goods)
