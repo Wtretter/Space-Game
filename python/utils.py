@@ -13,6 +13,8 @@ def initialize_trade_goods():
             name=name,
             **trade_good,
         )
+        if new_good.damage != 0.0:
+            new_good.is_weapon = True
         new_good.save()
 
 

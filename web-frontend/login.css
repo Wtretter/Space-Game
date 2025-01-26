@@ -1,0 +1,26 @@
+* {
+    color: rgb(0, 183, 255);
+    font-family: "Oxygen", monospace;
+}
+
+@font-face {
+    font-family: "Jersey";
+    src: url(/Jersey25-Regular.ttf);
+}
+
+@font-face {
+    font-family: "Oxygen";
+    src: url(/OxygenMono-Regular.ttf);
+}
+
+html {
+    height: 100%;
+}
+
+body {
+    display: flex; 
+    flex-flow: column nowrap;
+    margin: 0;
+    height: 100%;
+    background-color: rgb(40, 40, 40);
+}

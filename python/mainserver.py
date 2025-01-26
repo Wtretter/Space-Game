@@ -125,7 +125,7 @@ def piracy_check(ship: Ship) -> bool:
     if ship.no_pirates:
         return False
     else:
-        # return True
+        return True
         return (
             (
                 ship.cargo_used
@@ -350,11 +350,11 @@ async def handle_fight(request: CombatRequest):
     attackers: list[PirateShip] = [get_pirate(id) for id in ship.enemies]
     for attacker in attackers:
         for item in attacker.installed_items:
-            fight_items.append(FightItem(ship=attacker, item=item))
+            if item.is_weapon:
+                fight_items.append(FightItem(ship=attacker, item=item))
     for item in ship.installed_items:
-        fight_items.append(FightItem(ship=ship, item=item))
-    for fight_item in fight_items:
-        print(fight_item)
+        if item.is_weapon:
+            fight_items.append(FightItem(ship=ship, item=item))
     while True:
         for fight_item in fight_items:
             if fight_item.cooldown == 0.0:

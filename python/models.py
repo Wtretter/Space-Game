@@ -19,6 +19,7 @@ class EventType(str, Enum):
     ITEM_USED="Item Used"
     TIME_PASSED="Time Passed"
     DAMAGE_TAKEN="Damage Taken"
+    DODGED="Dodged"
 
 def generate_ship_name() -> str:
     ship_names = ("testpirate1", "testpirate2", "testpirate3")
@@ -81,7 +82,6 @@ class InventoryItem(DatabaseEntry):
     buy_price: int
     sell_price: int
     rarity: int
-    installed: bool = False
     # weapon attributes
     is_weapon: bool = False
     damage_type: Optional[DamageType] = None
@@ -90,7 +90,10 @@ class InventoryItem(DatabaseEntry):
     ammo_cost: int = 0
     ammo_type: Optional[str] = None
     energy_cost: float = 0.0
-    # TODO: defensive attributes
+    accuracy: float = 0.0
+    # defensive attributes
+    dodge_chance: float = 0.0 
+    damage_reduction: float = 0.0
 
     def save(self):
         goods.update_one({"_id": self._id}, {"$set": self.model_dump()}, upsert=True)
@@ -101,14 +104,18 @@ class FightItem(BaseModel):
     cooldown: float = 0.0
 
     def use(self, ship: Ship, attackers: list[PirateShip], log: list[LogEvent]):
-        if self.ship == ship:
-            target = random.choice(attackers)
-        else:
-            target = ship
-        attack_damage = (self.item.damage * (random.randint(75,125) / 100))
-        target.hitpoints -= attack_damage
-        log.append(LogEvent(type=EventType.DAMAGE_TAKEN, contents=(target.id, attack_damage)))
-
+        if self.item.is_weapon:
+            if self.ship == ship:
+                target = random.choice(attackers)
+            else:
+                target = ship
+            accuracy = random.random() + self.item.accuracy
+            if accuracy > target.dodge_chance:
+                attack_damage = (self.item.damage * (random.randint(75,125) / 100))
+                target.hitpoints -= attack_damage
+                log.append(LogEvent(type=EventType.DAMAGE_TAKEN, contents=(self.ship.id, target.id, attack_damage, self.item.damage_type)))
+            else:
+                log.append(LogEvent(type=EventType.DODGED, contents=target.id))
 class Station(BaseModel):
     name: str
     sale_goods: list[InventoryItem]
@@ -150,6 +157,10 @@ class Ship(DatabaseEntry):
     @property
     def install_space_used(self) -> int:
         return len(self.installed_items)
+    
+    @property
+    def dodge_chance(self) -> float:
+        return sum(item.dodge_chance for item in self.installed_items)
 
     def save(self):
         ships.update_one({"_id": self._id}, {"$set": self.model_dump()}, upsert=True)

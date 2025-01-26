@@ -163,6 +163,26 @@ window.addEventListener("load", async ()=>{
 
 
 async function display_combat(ship, enemies, log) {
+    const ship_info = document.querySelector(".ship-info");
+    ship_info.innerHTML = ""
+    const canvas = ship_info.appendChild(document.createElement("canvas"))
+    canvas.width = ship_info.clientWidth
+    canvas.height = ship_info.clientHeight
+    const locations_by_id = {
+        [ship.id]: [canvas.width/2, canvas.height-85]
+    }
+    for (const attacker of enemies) {
+        locations_by_id[attacker.id] = [canvas.width/2, 85]
+    }
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "green";
+    ctx.fillRect(canvas.width/2-25, canvas.height-85, 50, 75);
+    for (const enemy of enemies) {
+        ctx.fillStyle = "red";
+        ctx.fillRect(canvas.width/2-25, 10, 50, 75)
+    }
+    
+    
     let current_time = 0
     const ships_by_id = {
         [ship.id]: ship.name
@@ -182,9 +202,18 @@ async function display_combat(ship, enemies, log) {
             current_time += event.contents
             await Sleep(event.contents * 1000)
         } else if (event.type == "Damage Taken") {
-            let [id, amount] = event.contents
+            let [source_id, target_id, amount, damage_type] = event.contents
             amount = +amount.toFixed(2)
-            print_to_log(`${ships_by_id[id]} took ${amount} damage`)
+            print_to_log(`${ships_by_id[target_id]} took ${amount} damage`)
+            if (damage_type == "Laser") {
+                const outgoing = locations_by_id[source_id]
+                const incoming = locations_by_id[target_id]
+                ctx.strokeStyle = "blue"
+                ctx.beginPath()
+                ctx.moveTo(outgoing[0], outgoing[1])
+                ctx.lineTo(incoming[0], incoming[1])
+                ctx.stroke()
+            }
         } else if (event.type == "Item Used") {
             const [name, ship] = items_by_id[event.contents]
             print_newline_to_log()
@@ -192,8 +221,10 @@ async function display_combat(ship, enemies, log) {
         } else if (event.type == "Ship Destroyed") {
             const dead_ship = ships_by_id[event.contents]
             print_newline_to_log()
-            print_to_log(`${event.type} - ${dead_ship}`)
-
+            print_to_log(`${dead_ship} was destroyed`)
+        } else if (event.type == "Dodged") {
+            const dodger = ships_by_id[event.contents]
+            print_to_log(`${dodger} Dodged`)
         }
 
         else {
