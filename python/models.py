@@ -124,6 +124,7 @@ class Ship(DatabaseEntry):
     name: str = Field(default_factory=generate_ship_name)
     owner: Optional[str] = None
     hitpoints: float = 100.0
+    max_hitpoints: float = 100.0
     cargo_space: int = 10
     install_space: int = 2
     money: int = 10

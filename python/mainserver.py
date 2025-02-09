@@ -141,13 +141,13 @@ def generate_pirate(ship: Ship) -> PirateShip:
     ship_danger = (ship.cargo_used + abs(ship.coords.x) + abs(ship.coords.y) + abs(ship.coords.z))
     if ship_danger <= 250:
         # low level pirate
-        attacker = PirateShip(hitpoints=25, bravery=random.randint(5,30), bribe=.05)
+        attacker = PirateShip(hitpoints=25, max_hitpoints=25, bravery=random.randint(5,30), bribe=.05)
     elif ship_danger <= 1000:
         # mid level pirate
-        attacker = PirateShip(hitpoints=250, bravery=random.randint(25,500), bribe=.35)
+        attacker = PirateShip(hitpoints=250, max_hitpoints=250, bravery=random.randint(25,500), bribe=.35)
     elif ship_danger <= 10000:
         # high level pirate
-        attacker = PirateShip(hitpoints=400, bravery=random.randint(75,1000), bribe=.75)
+        attacker = PirateShip(hitpoints=400, max_hitpoints=400, bravery=random.randint(75,1000), bribe=.75)
     else:
         # you are either too dangerous or too far out to attack
         attacker = PirateShip(hitpoints=0, bravery=0, bribe=0)

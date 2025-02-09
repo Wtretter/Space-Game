@@ -1,7 +1,9 @@
 import {Future, Sleep} from "./Async.js";
+import { Scene, ShipNode, LaserNode } from "./scene.js";
 
 const base_url = window.location.protocol+"//"+window.location.hostname+":42000";
 let token = null;
+let gamespeed = 2;
 
 console.log("BASE URL", base_url);
 
@@ -169,30 +171,35 @@ async function display_combat(ship, enemies, log) {
     canvas.width = ship_info.clientWidth
     canvas.height = ship_info.clientHeight
     const locations_by_id = {
-        [ship.id]: [canvas.width/2, canvas.height-85]
+        [ship.id]: [canvas.width/2, canvas.height-100]
     }
     for (const attacker of enemies) {
-        locations_by_id[attacker.id] = [canvas.width/2, 85]
+        locations_by_id[attacker.id] = [canvas.width/2, 100]
     }
-    const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "green";
-    ctx.fillRect(canvas.width/2-25, canvas.height-85, 50, 75);
+    const nodes_by_id = {}
+
+    const scene = new Scene(canvas);
+    const shipNode = new ShipNode(true, canvas.width/2, canvas.height-60, ship.hitpoints/ship.max_hitpoints);
+    scene.nodes.push(shipNode);
+    nodes_by_id[ship.id] = shipNode;
+
     for (const enemy of enemies) {
-        ctx.fillStyle = "red";
-        ctx.fillRect(canvas.width/2-25, 10, 50, 75)
+        const enemyNode = new ShipNode(false, canvas.width/2, 60, enemy.hitpoints/enemy.max_hitpoints);
+        scene.nodes.push(enemyNode);
+        nodes_by_id[enemy.id] = enemyNode;
     }
-    
+    scene.draw();
     
     let current_time = 0
     const ships_by_id = {
-        [ship.id]: ship.name
+        [ship.id]: ship
     }
     const items_by_id = {}
     for (const item of ship.installed_items) {
         items_by_id[item.id] = [item.name, ship]
     }
     for (const attacker of enemies) {
-        ships_by_id[attacker.id] = attacker.name
+        ships_by_id[attacker.id] = attacker
         for (const item of attacker.installed_items) {
             items_by_id[item.id] = [item.name, attacker]
         }
@@ -200,19 +207,34 @@ async function display_combat(ship, enemies, log) {
     for (const event of log) {
         if (event.type == "Time Passed") {
             current_time += event.contents
-            await Sleep(event.contents * 1000)
+            await Sleep(event.contents * 1000 * gamespeed)
         } else if (event.type == "Damage Taken") {
             let [source_id, target_id, amount, damage_type] = event.contents
-            amount = +amount.toFixed(2)
-            print_to_log(`${ships_by_id[target_id]} took ${amount} damage`)
+            
+            const target_ship = ships_by_id[target_id];
+            const target_node = nodes_by_id[target_id];
+            print_to_log(`${target_ship.name} took ${+amount.toFixed(2)} damage`);
+
+            target_ship.hitpoints -= amount;
+            target_node.health = target_ship.hitpoints/target_ship.max_hitpoints;
+
             if (damage_type == "Laser") {
-                const outgoing = locations_by_id[source_id]
+                let color;
+                if (source_id == ship.id) {
+                    color = "green";
+                } else {
+                    color = "red"
+                }
+
+                const outgoing = locations_by_id[source_id] 
                 const incoming = locations_by_id[target_id]
-                ctx.strokeStyle = "blue"
-                ctx.beginPath()
-                ctx.moveTo(outgoing[0], outgoing[1])
-                ctx.lineTo(incoming[0], incoming[1])
-                ctx.stroke()
+                const laser = new LaserNode(color, outgoing[0] + 50 * Math.random() - 25, outgoing[1], incoming[0] + 50 * Math.random() - 25, incoming[1]);
+                scene.nodes.push(laser);
+                setTimeout(()=>{
+                    scene.nodes.splice(scene.nodes.indexOf(laser), 1);
+                    scene.draw();
+                }, 10);
+                scene.draw();
             }
         } else if (event.type == "Item Used") {
             const [name, ship] = items_by_id[event.contents]
@@ -221,10 +243,10 @@ async function display_combat(ship, enemies, log) {
         } else if (event.type == "Ship Destroyed") {
             const dead_ship = ships_by_id[event.contents]
             print_newline_to_log()
-            print_to_log(`${dead_ship} was destroyed`)
+            print_to_log(`${dead_ship.name} was destroyed`)
         } else if (event.type == "Dodged") {
             const dodger = ships_by_id[event.contents]
-            print_to_log(`${dodger} Dodged`)
+            print_to_log(`${dodger.name} Dodged`)
         }
 
         else {
