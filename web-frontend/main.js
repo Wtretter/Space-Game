@@ -1,9 +1,10 @@
 import {Future, Sleep} from "./Async.js";
-import { Scene, ShipNode, LaserNode } from "./scene.js";
+import {Scene, ShipNode, LaserNode, DamageNode } from "./scene.js";
+import {RandBetween} from "./utils.js";
 
 const base_url = window.location.protocol+"//"+window.location.hostname+":42000";
 let token = null;
-let gamespeed = 2;
+let gamespeed = 5;
 
 console.log("BASE URL", base_url);
 
@@ -155,30 +156,31 @@ window.addEventListener("load", async ()=>{
         location.replace("/shipyard.html");
         return;
     }
-    const logout_button = document.querySelector(".logout")
+    const logout_button = document.querySelector(".logout");
     logout_button.addEventListener("click", async () => {
         localStorage.removeItem("token");
         location.replace("/login.html");
-    })
-    main_loop()
+    });
+    main_loop();
 });
 
 
 async function display_combat(ship, enemies, log) {
     const ship_info = document.querySelector(".ship-info");
-    ship_info.innerHTML = ""
-    const canvas = ship_info.appendChild(document.createElement("canvas"))
-    canvas.width = ship_info.clientWidth
-    canvas.height = ship_info.clientHeight
+    ship_info.innerHTML = "";
+    const canvas = ship_info.appendChild(document.createElement("canvas"));
+    canvas.width = ship_info.clientWidth;
+    canvas.height = ship_info.clientHeight;
     const locations_by_id = {
         [ship.id]: [canvas.width/2, canvas.height-100]
-    }
+    };
     for (const attacker of enemies) {
         locations_by_id[attacker.id] = [canvas.width/2, 100]
     }
-    const nodes_by_id = {}
+    const nodes_by_id = {};
 
     const scene = new Scene(canvas);
+    scene.start();
     const shipNode = new ShipNode(true, canvas.width/2, canvas.height-60, ship.hitpoints/ship.max_hitpoints);
     scene.nodes.push(shipNode);
     nodes_by_id[ship.id] = shipNode;
@@ -188,31 +190,36 @@ async function display_combat(ship, enemies, log) {
         scene.nodes.push(enemyNode);
         nodes_by_id[enemy.id] = enemyNode;
     }
-    scene.draw();
     
     let current_time = 0
     const ships_by_id = {
         [ship.id]: ship
-    }
-    const items_by_id = {}
+    };
+    const items_by_id = {};
     for (const item of ship.installed_items) {
-        items_by_id[item.id] = [item.name, ship]
+        items_by_id[item.id] = [item.name, ship];
     }
     for (const attacker of enemies) {
-        ships_by_id[attacker.id] = attacker
+        ships_by_id[attacker.id] = attacker;
         for (const item of attacker.installed_items) {
-            items_by_id[item.id] = [item.name, attacker]
+            items_by_id[item.id] = [item.name, attacker];
         }
     }
     for (const event of log) {
         if (event.type == "Time Passed") {
-            current_time += event.contents
-            await Sleep(event.contents * 1000 * gamespeed)
+            current_time += event.contents;
+            await Sleep(event.contents * 1000 * gamespeed);
         } else if (event.type == "Damage Taken") {
-            let [source_id, target_id, amount, damage_type] = event.contents
-            
+            let [source_id, target_id, amount, damage_type] = event.contents;
+
             const target_ship = ships_by_id[target_id];
             const target_node = nodes_by_id[target_id];
+            const outgoing = locations_by_id[source_id];
+            const incoming = locations_by_id[target_id];
+
+            const damage_node = new DamageNode("white", +amount.toFixed(2), incoming[0], incoming[1]);
+            scene.nodes.push(damage_node);
+
             print_to_log(`${target_ship.name} took ${+amount.toFixed(2)} damage`);
 
             target_ship.hitpoints -= amount;
@@ -223,36 +230,31 @@ async function display_combat(ship, enemies, log) {
                 if (source_id == ship.id) {
                     color = "green";
                 } else {
-                    color = "red"
+                    color = "red";
                 }
 
-                const outgoing = locations_by_id[source_id] 
-                const incoming = locations_by_id[target_id]
-                const laser = new LaserNode(color, outgoing[0] + 50 * Math.random() - 25, outgoing[1], incoming[0] + 50 * Math.random() - 25, incoming[1]);
+                const laser = new LaserNode(color, outgoing[0] + RandBetween(-25, 25), outgoing[1], incoming[0] + RandBetween(-25, 25), incoming[1]);
                 scene.nodes.push(laser);
-                setTimeout(()=>{
-                    scene.nodes.splice(scene.nodes.indexOf(laser), 1);
-                    scene.draw();
-                }, 10);
-                scene.draw();
             }
         } else if (event.type == "Item Used") {
-            const [name, ship] = items_by_id[event.contents]
-            print_newline_to_log()
-            print_to_log(`${current_time.toFixed(2)}s ${ship.name} used ${name}`)
+            const [name, ship] = items_by_id[event.contents];
+            print_newline_to_log();
+            print_to_log(`${current_time.toFixed(2)}s ${ship.name} used ${name}`);
         } else if (event.type == "Ship Destroyed") {
-            const dead_ship = ships_by_id[event.contents]
-            print_newline_to_log()
-            print_to_log(`${dead_ship.name} was destroyed`)
+            const dead_ship = ships_by_id[event.contents];
+            print_newline_to_log();
+            print_to_log(`${dead_ship.name} was destroyed`);
         } else if (event.type == "Dodged") {
-            const dodger = ships_by_id[event.contents]
-            print_to_log(`${dodger.name} Dodged`)
+            const dodger = ships_by_id[event.contents];
+            print_to_log(`${dodger.name} Dodged`);
         }
 
         else {
-            print_to_log(`${event.type} - ${event.contents}`)
+            print_to_log(`${event.type} - ${event.contents}`);
         }
     }
+    await Sleep(1000);
+    scene.stop();
 }
 
 async function combat_loop(ship) {
