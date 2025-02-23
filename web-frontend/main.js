@@ -117,6 +117,15 @@ async function buy(name) {
         "headers": {"Content-Type": "application/json"}
     });    
 }
+
+async function sell(name) {
+    const response = await fetch(base_url+`/cargo/sell`, {
+        "method": "POST",
+        "body": JSON.stringify({token: token, name: name}),
+        "headers": {"Content-Type": "application/json"}
+    });    
+}
+
 function print_newline_to_log() {
     const log_element = document.querySelector(".log");
     const message_element = log_element.appendChild(document.createElement("p"));
@@ -181,12 +190,12 @@ async function display_combat(ship, enemies, log) {
 
     const scene = new Scene(canvas);
     scene.start();
-    const shipNode = new ShipNode(true, canvas.width/2, canvas.height-60, ship.hitpoints/ship.max_hitpoints);
+    const shipNode = new ShipNode(true, canvas.width/2, canvas.height-60, ship.hitpoints/ship.max_hitpoints, ship.name);
     scene.nodes.push(shipNode);
     nodes_by_id[ship.id] = shipNode;
 
     for (const enemy of enemies) {
-        const enemyNode = new ShipNode(false, canvas.width/2, 60, enemy.hitpoints/enemy.max_hitpoints);
+        const enemyNode = new ShipNode(false, canvas.width/2, 60, enemy.hitpoints/enemy.max_hitpoints, enemy.name);
         scene.nodes.push(enemyNode);
         nodes_by_id[enemy.id] = enemyNode;
     }
@@ -313,13 +322,15 @@ async function non_combat_loop(ship, station) {
                         error("Insufficient Funds")
                     } else {
                         buy(buy_item.name)
+                        print_newline_to_log()
+                        print_to_log(`bought: ${buy_item.name}`)
                     }
                 });
             }
 
             const exit_button = buy_window.appendChild(document.createElement("button"));
             exit_button.classList.add("exit");
-            exit_button.textContent = "Cancel";
+            exit_button.textContent = "Close";
             exit_button.addEventListener("click", async () => {
                 buy_window.remove();
                 finished.resolve();
@@ -329,7 +340,27 @@ async function non_combat_loop(ship, station) {
         const sell_button = station_container.appendChild(document.createElement("button"))
         sell_button.classList.add("sell")
         sell_button.textContent = "Sell";
+// WIP - not functional yet---------------------------------------------------------------------------
         sell_button.addEventListener("click", async () => {
+            const sell_window = document.body.appendChild(document.createElement("div"));
+            sell_window.classList.add("popup");
+            for (const sell_item of ship.cargo) {
+                const item_button = sell_window.appendChild(document.createElement("button"))
+                item_button.textContent = `${sell_item.name} for $${sell_item.sell_price}`
+                item_button.addEventListener("click", async () => {
+                    sell(sell_item.name)
+                    print_newline_to_log()
+                    print_to_log(`sold: ${sell_item.name}`)
+                });
+            }
+
+            const exit_button = sell_window.appendChild(document.createElement("button"));
+            exit_button.classList.add("exit");
+            exit_button.textContent = "Close";
+            exit_button.addEventListener("click", async () => {
+                sell_window.remove();
+                finished.resolve();
+            });
         });
 
         const upgrade_button = station_container.appendChild(document.createElement("button"))
@@ -338,7 +369,7 @@ async function non_combat_loop(ship, station) {
         upgrade_button.addEventListener("click", async () => {
         });    
     }
-
+// ---------------------------------------------------------------------------------------------------
 
     const move_container = inputs_element.appendChild(document.createElement("div"))
     move_container.classList.add("move-container")
@@ -403,6 +434,7 @@ async function main_loop(){
     console.log("starting main loop")
     while (true) {
         print_to_log((new Date()).toLocaleTimeString())
+        liveTimer()
         const [ship, station] = await get_ship();
         print_ship(ship)
         print_to_log(`You have entered sector: X:${ship.coords.x}|Y:${ship.coords.y}|Z:${ship.coords.z}`)
@@ -415,4 +447,12 @@ async function main_loop(){
         }
         add_divider_to_log()
     }
+}
+
+function liveTimer(){
+    const timer = document.querySelector(".timer-row");
+    timer.innerHTML = ""
+    var timer_element = timer.appendChild(document.createElement("p"));
+    timer_element.textContent = (new Date()).toLocaleTimeString();
+    setTimeout(liveTimer, 1000)
 }

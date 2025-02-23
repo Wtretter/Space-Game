@@ -70,11 +70,11 @@ export class ShipNode extends Node{
         
         ctx.fillStyle = "white";
         ctx.textAlign = "center";
-        ctx.font = "24px Jersey";
+        ctx.font = "20px Jersey";
         if (this.is_player) {
-            ctx.fillText(this.name, this.x, this.y+60);
+            ctx.fillText(this.name, this.x, this.y+55);
         } else {
-            ctx.fillText(this.name, this.x, this.y-50);
+            ctx.fillText(this.name, this.x, this.y-45);
         }
         
 

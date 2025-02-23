@@ -1,15 +1,15 @@
-To do:
--non combat frontend
--finish combat frontend
--print pirates on gui
+to do:
+    -fix selling items at stations
+    -implement economy/profit/loot features
+    -implement ship upgrades
+    -implement other weapon types + weapon installation
+    -implement map
 
--maps
--fuel
--guns
-    cargo destruction
-    hireable guards
--market fluctuations
-
-ideas!
-- tiers
+possible to do:
+    -fuel
+    -cargo destruction
+    -hireable guards
+    -market fluctuations
+    -power tiers (loot colors?)
+    -factions/faction rep
 

@@ -22,11 +22,11 @@ class EventType(str, Enum):
     DODGED="Dodged"
 
 def generate_ship_name() -> str:
-    ship_names = ("testpirate1", "testpirate2", "testpirate3")
+    ship_names = ("TestPirate I", "TestPirate II", "TestPirate III", "TestPirate IV", "TestPirate V")
     return random.choice(ship_names)
 
 def generate_station_name(generator: random.Random) -> str:
-    station_names = ("teststation1", "teststation2", "teststation3")
+    station_names = ("TestStation I", "TestStation II", "TestStation III", "TestStation IV", "TestStation V")
     return generator.choice(station_names)
 
 def generate_goods(generator: random.Random) -> list:

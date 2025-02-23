@@ -97,6 +97,9 @@ class NonCombatRequest(ShipRequest):
     def on_validate(self):
         if self.ship.in_combat:
             raise ClientError("You are in combat")
+        
+class SellRequest(NonCombatRequest):
+    name:str
 
 class BuyRequest(NonCombatRequest):
     name: str
@@ -125,7 +128,7 @@ def piracy_check(ship: Ship) -> bool:
     if ship.no_pirates:
         return False
     else:
-        return True
+        # return True
         return (
             (
                 ship.cargo_used
@@ -265,15 +268,18 @@ async def cargo_buy(request: BuyRequest):
     ship.save()
     return ship
 
+# WIP - broken -------------------------------------
 @app.post("/cargo/sell")
-async def cargo_sell(request: NonCombatRequest):
+async def cargo_sell(request: SellRequest):
     ship = request.ship
+    item = request.name
     if ship.cargo_used <= 0:
         return "no cargo to sell"
+    ship.cargo.remove(item)
     ship.money += 1
-    ship.cargo_used -= 1
     ship.save()
     return ship
+# ------------------------------------------------------
 
 @app.post("/upgrade/hull")
 async def upgrade_hull(request: NonCombatRequest):
