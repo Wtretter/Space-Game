@@ -32,6 +32,9 @@ p {
 .row {
     display: flex; 
     flex-flow: row nowrap;
+}
+
+.top-region {
     height: calc(100% - 234px);
 }
 
@@ -144,14 +147,18 @@ button.upgrade {
 
 .popup {
     z-index: 1;
+    padding-top: 20px;
+    padding-bottom: 20px;
     position: absolute;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: start;
     width: 100%;
-    height: 100%;
+    min-height: 100%;
     background-color: rgba(0, 0, 0, 0.5);
-    flex-flow: column wrap;
+    flex-flow: column nowrap;
+    overflow-y: auto;
+
 }
 
 .popup button {
@@ -165,5 +172,25 @@ canvas {
 }
 
 .timer-row {
-    margin-left: 20px;
+    position: absolute;
+    top: 20px;
+    right: 120px;
+}
+
+.popup-window-funds {
+    color: rgb(0, 64, 151);
+    background-color: rgb(200, 200, 200);
+    padding: 4px;
+    font-size: x-large;
+    border-radius: 8px;
+    border: 2px solid rgb(100, 100, 100);
+    box-shadow: 2px 2px 2px black;
+}
+
+.item-row {
+    width: 100%;
+}
+
+.center {
+    align-items: center;
 }

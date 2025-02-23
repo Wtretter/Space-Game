@@ -99,7 +99,7 @@ class NonCombatRequest(ShipRequest):
             raise ClientError("You are in combat")
         
 class SellRequest(NonCombatRequest):
-    name:str
+    item_id:str
 
 class BuyRequest(NonCombatRequest):
     name: str
@@ -264,28 +264,34 @@ async def cargo_buy(request: BuyRequest):
     if ship.cargo_used >= ship.cargo_space:
         raise ClientError("out of cargo space!")
     ship.money -= goods_to_buy.buy_price
+    goods_to_buy.id = generate_id()
     ship.cargo.append(goods_to_buy)
     ship.save()
     return ship
 
-# WIP - broken -------------------------------------
 @app.post("/cargo/sell")
 async def cargo_sell(request: SellRequest):
     ship = request.ship
-    item = request.name
+    item_id = request.item_id
     if ship.cargo_used <= 0:
-        return "no cargo to sell"
-    ship.cargo.remove(item)
-    ship.money += 1
+        raise ClientError("no cargo to sell")
+    item_to_remove = None
+    for item in ship.cargo:
+        if item.id == item_id:
+            item_to_remove = item
+            break
+    if item_to_remove == None:
+        raise ClientError("item not found")
+    ship.money += item_to_remove.sell_price
+    ship.cargo.remove(item_to_remove)
     ship.save()
     return ship
-# ------------------------------------------------------
 
 @app.post("/upgrade/hull")
 async def upgrade_hull(request: NonCombatRequest):
     ship = request.ship
     if ship.money <= 0:
-        return "no money!"
+        raise ClientError("no money!")
     ship.money -= 1
     ship.hitpoints += 25
     ship.save()
@@ -295,7 +301,7 @@ async def upgrade_hull(request: NonCombatRequest):
 async def upgrade_cargo(request: NonCombatRequest):
     ship = request.ship
     if ship.money <= 0:
-        return "no money!"
+        raise ClientError("no money!")
     ship.money -= 1
     ship.cargo_space += 5
     ship.save()

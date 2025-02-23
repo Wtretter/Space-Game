@@ -83,7 +83,7 @@ async function get_enemies(){
 function error(string) {
     print_newline_to_log()
     print_to_log(`*${string}*`)
-
+    throw Error(string);
 }
 
 async function run_away(ship){
@@ -118,10 +118,10 @@ async function buy(name) {
     });    
 }
 
-async function sell(name) {
+async function sell(item_id) {
     const response = await fetch(base_url+`/cargo/sell`, {
         "method": "POST",
-        "body": JSON.stringify({token: token, name: name}),
+        "body": JSON.stringify({token: token, item_id: item_id}),
         "headers": {"Content-Type": "application/json"}
     });    
 }
@@ -314,14 +314,22 @@ async function non_combat_loop(ship, station) {
         buy_button.addEventListener("click", async () => {
             const buy_window = document.body.appendChild(document.createElement("div"));
             buy_window.classList.add("popup");
+            const funds_on_hand = buy_window.appendChild(document.createElement("p"))
+            funds_on_hand.textContent = `Funds available: ${ship.money}`
+            funds_on_hand.classList.add("popup-window-funds")
             for (const buy_item of station.sale_goods) {
                 const item_button = buy_window.appendChild(document.createElement("button"))
                 item_button.textContent = `${buy_item.name} for $${buy_item.buy_price}`
                 item_button.addEventListener("click", async () => {
                     if (ship.money < buy_item.buy_price) {
                         error("Insufficient Funds")
+                    } else if (ship.cargo.length >= ship.cargo_space) {
+                        error("Insufficient Cargo Space")
                     } else {
                         buy(buy_item.name)
+                        ship.money -= buy_item.buy_price
+                        funds_on_hand.textContent = `Funds available: ${ship.money}`
+                        ship.cargo.push(buy_item)
                         print_newline_to_log()
                         print_to_log(`bought: ${buy_item.name}`)
                     }
@@ -340,15 +348,20 @@ async function non_combat_loop(ship, station) {
         const sell_button = station_container.appendChild(document.createElement("button"))
         sell_button.classList.add("sell")
         sell_button.textContent = "Sell";
-// WIP - not functional yet---------------------------------------------------------------------------
         sell_button.addEventListener("click", async () => {
             const sell_window = document.body.appendChild(document.createElement("div"));
             sell_window.classList.add("popup");
+            const funds_on_hand = sell_window.appendChild(document.createElement("p"))
+            funds_on_hand.textContent = `Funds available: ${ship.money}`
+            funds_on_hand.classList.add("popup-window-funds")
             for (const sell_item of ship.cargo) {
                 const item_button = sell_window.appendChild(document.createElement("button"))
                 item_button.textContent = `${sell_item.name} for $${sell_item.sell_price}`
                 item_button.addEventListener("click", async () => {
-                    sell(sell_item.name)
+                    item_button.remove()
+                    sell(sell_item.id)
+                    ship.money += sell_item.sell_price
+                    funds_on_hand.textContent = `Funds available: ${ship.money}`
                     print_newline_to_log()
                     print_to_log(`sold: ${sell_item.name}`)
                 });
@@ -367,9 +380,36 @@ async function non_combat_loop(ship, station) {
         upgrade_button.classList.add("upgrade")
         upgrade_button.textContent = "Upgrade";
         upgrade_button.addEventListener("click", async () => {
+            const upgrade_window = document.body.appendChild(document.createElement("div"));
+            upgrade_window.classList.add("popup");
+            const upgrade_row = upgrade_window.appendChild(document.createElement("div"));
+            upgrade_row.classList.add("row");
+            upgrade_row.classList.add("item-row");
+
+            const installable = upgrade_row.appendChild(document.createElement("div"));
+            installable.classList.add("column");
+            installable.classList.add("center");
+            for (const item of ship.cargo) {
+                if (item.installable) {
+                    const button = installable.appendChild(document.createElement("button"));
+                    button.textContent = item.name
+                }
+            }
+            const installed = upgrade_row.appendChild(document.createElement("div"));
+            installed.classList.add("column");
+            for (const item of ship.installed_items) {
+                const button = installed.appendChild(document.createElement("button"));
+                button.textContent = item.name
+            }
+            const exit_button = upgrade_window.appendChild(document.createElement("button"));
+            exit_button.classList.add("exit");
+            exit_button.textContent = "Close";
+            exit_button.addEventListener("click", async () => {
+                upgrade_window.remove();
+                finished.resolve();
+            });
         });    
     }
-// ---------------------------------------------------------------------------------------------------
 
     const move_container = inputs_element.appendChild(document.createElement("div"))
     move_container.classList.add("move-container")
@@ -435,6 +475,7 @@ async function main_loop(){
     while (true) {
         print_to_log((new Date()).toLocaleTimeString())
         liveTimer()
+        setInterval(liveTimer, 1000)
         const [ship, station] = await get_ship();
         print_ship(ship)
         print_to_log(`You have entered sector: X:${ship.coords.x}|Y:${ship.coords.y}|Z:${ship.coords.z}`)
@@ -451,8 +492,5 @@ async function main_loop(){
 
 function liveTimer(){
     const timer = document.querySelector(".timer-row");
-    timer.innerHTML = ""
-    var timer_element = timer.appendChild(document.createElement("p"));
-    timer_element.textContent = (new Date()).toLocaleTimeString();
-    setTimeout(liveTimer, 1000)
+    timer.textContent = (new Date()).toLocaleTimeString();
 }

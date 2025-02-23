@@ -25,6 +25,9 @@ def generate_ship_name() -> str:
     ship_names = ("TestPirate I", "TestPirate II", "TestPirate III", "TestPirate IV", "TestPirate V")
     return random.choice(ship_names)
 
+def generate_id() -> str:
+    return ObjectId().binary.hex()
+
 def generate_station_name(generator: random.Random) -> str:
     station_names = ("TestStation I", "TestStation II", "TestStation III", "TestStation IV", "TestStation V")
     return generator.choice(station_names)
@@ -64,7 +67,7 @@ class Position(BaseModel):
 
 class DatabaseEntry(BaseModel):
     id: Annotated[str, BeforeValidator(entry_id_validator)] = Field(
-        default_factory=lambda: ObjectId().binary.hex(),
+        default_factory=generate_id,
         validation_alias=AliasChoices("_id", "id")
     )
 
@@ -82,6 +85,7 @@ class InventoryItem(DatabaseEntry):
     buy_price: int
     sell_price: int
     rarity: int
+    installable: bool = False
     # weapon attributes
     is_weapon: bool = False
     damage_type: Optional[DamageType] = None
