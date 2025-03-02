@@ -6,6 +6,7 @@ from typing import Annotated, Optional, Any
 from pydantic.functional_validators import BeforeValidator
 from enum import Enum
 import random
+import string
 
 
 class DamageType(str, Enum):
@@ -27,6 +28,16 @@ def generate_ship_name() -> str:
 
 def generate_id() -> str:
     return ObjectId().binary.hex()
+
+def generate_serial(name: str) -> str:
+    serial = ""
+    length = random.randint(4,6)
+    for word in name.split():
+        serial += word[0].upper()
+    serial += "-"
+    for i in range(length):
+        serial += random.choice(string.ascii_uppercase + string.digits)
+    return serial
 
 def generate_station_name(generator: random.Random) -> str:
     station_names = ("TestStation I", "TestStation II", "TestStation III", "TestStation IV", "TestStation V")
@@ -86,6 +97,7 @@ class InventoryItem(DatabaseEntry):
     sell_price: int
     rarity: int
     installable: bool = False
+    serial_number: Optional[str] = None
     # weapon attributes
     is_weapon: bool = False
     damage_type: Optional[DamageType] = None

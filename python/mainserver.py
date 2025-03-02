@@ -98,7 +98,7 @@ class NonCombatRequest(ShipRequest):
         if self.ship.in_combat:
             raise ClientError("You are in combat")
         
-class SellRequest(NonCombatRequest):
+class ItemRequest(NonCombatRequest):
     item_id:str
 
 class BuyRequest(NonCombatRequest):
@@ -167,6 +167,7 @@ def create_ship(shipname: str, username: str) -> Ship:
     user = User.model_validate(users.find_one({"username": username}))
     laser_document = goods.find_one({"name": "Mining Laser"})
     starter_laser = InventoryItem.model_validate(laser_document)
+    starter_laser.serial_number = generate_serial(starter_laser.name)
     ship = Ship(name=shipname, owner=username, installed_items=[starter_laser])
     ship.save()
     user.ship_id = ship.id
@@ -265,12 +266,13 @@ async def cargo_buy(request: BuyRequest):
         raise ClientError("out of cargo space!")
     ship.money -= goods_to_buy.buy_price
     goods_to_buy.id = generate_id()
+    goods_to_buy.serial_number = generate_serial(goods_to_buy.name)
     ship.cargo.append(goods_to_buy)
     ship.save()
     return ship
 
 @app.post("/cargo/sell")
-async def cargo_sell(request: SellRequest):
+async def cargo_sell(request: ItemRequest):
     ship = request.ship
     item_id = request.item_id
     if ship.cargo_used <= 0:
@@ -284,6 +286,42 @@ async def cargo_sell(request: SellRequest):
         raise ClientError("item not found")
     ship.money += item_to_remove.sell_price
     ship.cargo.remove(item_to_remove)
+    ship.save()
+    return ship
+
+@app.post("/cargo/install")
+async def cargo_install(request: ItemRequest):
+    ship = request.ship
+    item_id = request.item_id
+    if ship.install_space_used >= ship.install_space:
+        raise ClientError("no space for installation")
+    item_to_install = None
+    for item in ship.cargo:
+        if item.id == item_id:
+            item_to_install = item
+            break
+    if item_to_install == None:
+        raise ClientError("item not found")
+    ship.cargo.remove(item_to_install)
+    ship.installed_items.append(item_to_install)
+    ship.save()
+    return ship
+
+@app.post("/cargo/uninstall")
+async def cargo_uninstall(request: ItemRequest):
+    ship = request.ship
+    item_id = request.item_id
+    if ship.cargo_used >= ship.cargo_space:
+        raise ClientError("no space for uninstallation")
+    item_to_uninstall = None
+    for item in ship.installed_items:
+        if item.id == item_id:
+            item_to_uninstall = item
+            break
+    if item_to_uninstall == None:
+        raise ClientError("item not found")
+    ship.installed_items.remove(item_to_uninstall)
+    ship.cargo.append(item_to_uninstall)
     ship.save()
     return ship
 

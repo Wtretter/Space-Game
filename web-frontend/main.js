@@ -110,20 +110,33 @@ async function run_away(ship){
 }
 
 
-async function buy(name) {
-    const response = await fetch(base_url+`/cargo/buy`, {
+async function send_request(endpoint, data) {
+    const response = await fetch(base_url+endpoint, {
         "method": "POST",
-        "body": JSON.stringify({token: token, name: name}),
+        "body": JSON.stringify(data),
         "headers": {"Content-Type": "application/json"}
-    });    
+    });
+    if (response.status != 200) {
+        throw Error(`${response.status} ${response.statusText}: ${await response.text()}`);
+    }
+    return await response.json();
+}
+
+
+async function buy(name) {
+    return await send_request("/cargo/buy", {token: token, name: name});
 }
 
 async function sell(item_id) {
-    const response = await fetch(base_url+`/cargo/sell`, {
-        "method": "POST",
-        "body": JSON.stringify({token: token, item_id: item_id}),
-        "headers": {"Content-Type": "application/json"}
-    });    
+    return await send_request("/cargo/sell", {token: token, item_id: item_id}); 
+}
+
+async function install(item_id) {
+    return await send_request("/cargo/install", {token: token, item_id: item_id});
+}
+
+async function uninstall(item_id) {
+    return await send_request("/cargo/uninstall", {token: token, item_id: item_id});
 }
 
 function print_newline_to_log() {
@@ -315,11 +328,11 @@ async function non_combat_loop(ship, station) {
             const buy_window = document.body.appendChild(document.createElement("div"));
             buy_window.classList.add("popup");
             const funds_on_hand = buy_window.appendChild(document.createElement("p"))
-            funds_on_hand.textContent = `Funds available: ${ship.money}`
+            funds_on_hand.textContent = `Funds available: ${ship.money}\u20A2`
             funds_on_hand.classList.add("popup-window-funds")
             for (const buy_item of station.sale_goods) {
                 const item_button = buy_window.appendChild(document.createElement("button"))
-                item_button.textContent = `${buy_item.name} for $${buy_item.buy_price}`
+                item_button.textContent = `${buy_item.name} for ${buy_item.buy_price}\u20A2`
                 item_button.addEventListener("click", async () => {
                     if (ship.money < buy_item.buy_price) {
                         error("Insufficient Funds")
@@ -352,18 +365,18 @@ async function non_combat_loop(ship, station) {
             const sell_window = document.body.appendChild(document.createElement("div"));
             sell_window.classList.add("popup");
             const funds_on_hand = sell_window.appendChild(document.createElement("p"))
-            funds_on_hand.textContent = `Funds available: ${ship.money}`
+            funds_on_hand.textContent = `Funds available: ${ship.money}\u20A2`
             funds_on_hand.classList.add("popup-window-funds")
             for (const sell_item of ship.cargo) {
                 const item_button = sell_window.appendChild(document.createElement("button"))
-                item_button.textContent = `${sell_item.name} for $${sell_item.sell_price}`
+                item_button.textContent = `${sell_item.name} ${sell_item.serial_number} for ${sell_item.sell_price}\u20A2`
                 item_button.addEventListener("click", async () => {
                     item_button.remove()
                     sell(sell_item.id)
                     ship.money += sell_item.sell_price
-                    funds_on_hand.textContent = `Funds available: ${ship.money}`
+                    funds_on_hand.textContent = `Funds available: ${ship.money}\u20A2`
                     print_newline_to_log()
-                    print_to_log(`sold: ${sell_item.name}`)
+                    print_to_log(`sold: ${sell_item.name} ${sell_item.serial_number}`)
                 });
             }
 
@@ -389,17 +402,38 @@ async function non_combat_loop(ship, station) {
             const installable = upgrade_row.appendChild(document.createElement("div"));
             installable.classList.add("column");
             installable.classList.add("center");
+
+            function display_installable(item) {
+                const button = installable.appendChild(document.createElement("button"));
+                button.textContent = `Install ${item.name} ${item.serial_number}`
+                button.addEventListener("click", async () => {
+                    await install(item.id);
+                    button.remove()
+                    display_installed(item);
+                });
+            }
+
+            function display_installed(item) {
+                const button = installed.appendChild(document.createElement("button"));
+                button.textContent = `Uninstall ${item.name} ${item.serial_number}`
+                button.addEventListener("click", async () => {
+                    await uninstall(item.id);
+                    button.remove()
+                    display_installable(item);
+                });
+            }
+            
             for (const item of ship.cargo) {
                 if (item.installable) {
-                    const button = installable.appendChild(document.createElement("button"));
-                    button.textContent = item.name
+                    display_installable(item);
                 }
             }
+
             const installed = upgrade_row.appendChild(document.createElement("div"));
             installed.classList.add("column");
+            installed.classList.add("center");
             for (const item of ship.installed_items) {
-                const button = installed.appendChild(document.createElement("button"));
-                button.textContent = item.name
+                display_installed(item);
             }
             const exit_button = upgrade_window.appendChild(document.createElement("button"));
             exit_button.classList.add("exit");
@@ -455,18 +489,18 @@ function print_ship(ship) {
     const cargo_list_element = ship_info.appendChild(document.createElement("div"));
     for (const trade_good of ship.cargo) {
         const cargo_element = cargo_list_element.appendChild(document.createElement("p"));
-        cargo_element.textContent = "- " + trade_good.name;
+        cargo_element.textContent = `- ${trade_good.name} ${trade_good.serial_number}`;
     }
 
     const money_element = ship_info.appendChild(document.createElement("p"));
-    money_element.textContent = "Funds: " + ship.money;
+    money_element.textContent = `Funds: ${ship.money}\u20A2`;
 }
 
 function print_station(station) {
     print_to_log(`Station name: ${station.name}`)
     print_to_log("Goods for sale:")
     for (const trade_good of station.sale_goods) {
-        print_to_log(`- ${trade_good.name} for ${trade_good.buy_price}`)
+        print_to_log(`- ${trade_good.name} for ${trade_good.buy_price}\u20A2`)
     }
 }
 
