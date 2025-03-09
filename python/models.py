@@ -7,6 +7,7 @@ from pydantic.functional_validators import BeforeValidator
 from enum import Enum
 import random
 import string
+from datetime import datetime
 
 
 class DamageType(str, Enum):
@@ -185,11 +186,20 @@ class Ship(DatabaseEntry):
     def delete(self):
         ships.find_one_and_delete({"_id": self._id})
 
+class Note(BaseModel):
+    title: str
+    content: str
+    coords: Position
+    original_timestamp: datetime
+    edited_timestamp: datetime
+
+
 class User(DatabaseEntry):
     username: str
     hashed_password: str
     ship_id: Optional[str] = None
     lost_ships: int = 0
+    notes: list[Note] = Field(default_factory=list)
 
     def save(self):
         users.update_one({"_id": self._id}, {"$set": self.model_dump()}, upsert=True)

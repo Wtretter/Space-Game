@@ -101,6 +101,9 @@ class NonCombatRequest(ShipRequest):
 class ItemRequest(NonCombatRequest):
     item_id:str
 
+class NoteRequest(GameRequest):
+    note: Note
+
 class BuyRequest(NonCombatRequest):
     name: str
 
@@ -222,6 +225,26 @@ async def handle_reset(request: ShipRequest):
 @app.post("/status")
 async def get_status(request: GameRequest):
     return "success"
+
+@app.post("/notes/get")
+async def get_notes(request: GameRequest):
+    document = users.find_one({"username": request.token.username})
+    if document == None:
+        raise AuthError("invalid token")
+    user = User.model_validate(document)
+    return user.notes
+
+@app.post("/notes/push")
+async def get_notes(request: NoteRequest):
+    document = users.find_one({"username": request.token.username})
+    if document == None:
+        raise AuthError("invalid token")
+    user = User.model_validate(document)
+    # if request.note.coords 
+    # user.notes.upsert(request.note)
+    
+
+
 
 @app.post("/register")
 async def register(request: RegistrationRequest):

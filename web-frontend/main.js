@@ -1,12 +1,20 @@
 import {Future, Sleep} from "./Async.js";
+import {error, register_error_callback} from "./error.js";
 import {Scene, ShipNode, LaserNode, DamageNode } from "./scene.js";
 import {RandBetween} from "./utils.js";
+
 
 const base_url = window.location.protocol+"//"+window.location.hostname+":42000";
 let token = null;
 let gamespeed = 5;
 
 console.log("BASE URL", base_url);
+
+
+register_error_callback(string => {
+    print_newline_to_log()
+    print_to_log(`*${string}*`)
+});
 
 
 async function get_ship(){
@@ -80,11 +88,6 @@ async function get_enemies(){
     return await response.json();
 }
 
-function error(string) {
-    print_newline_to_log()
-    print_to_log(`*${string}*`)
-    throw Error(string);
-}
 
 async function run_away(ship){
     if (ship.time_in_combat * ship.jump_cooldown_amount >= ship.cargo.length) {
@@ -178,11 +181,20 @@ window.addEventListener("load", async ()=>{
         location.replace("/shipyard.html");
         return;
     }
+    liveTimer()
+    setInterval(liveTimer, 1000)
     const logout_button = document.querySelector(".logout");
     logout_button.addEventListener("click", async () => {
         localStorage.removeItem("token");
         location.replace("/login.html");
     });
+    const note_button = document.querySelector(".notebook");
+    note_button.addEventListener("click", async () => {
+        const notebook_window = document.body.appendChild(document.createElement("div"));
+            notebook_window.classList.add("popup");
+            const funds_on_hand = notebook_window.appendChild(document.createElement("p"))
+            funds_on_hand.textContent = `Funds available: ${ship.money}\u20A2`
+    })
     main_loop();
 });
 
@@ -508,8 +520,6 @@ async function main_loop(){
     console.log("starting main loop")
     while (true) {
         print_to_log((new Date()).toLocaleTimeString())
-        liveTimer()
-        setInterval(liveTimer, 1000)
         const [ship, station] = await get_ship();
         print_ship(ship)
         print_to_log(`You have entered sector: X:${ship.coords.x}|Y:${ship.coords.y}|Z:${ship.coords.z}`)
