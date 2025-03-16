@@ -101,8 +101,13 @@ class NonCombatRequest(ShipRequest):
 class ItemRequest(NonCombatRequest):
     item_id:str
 
-class NoteRequest(GameRequest):
-    note: Note
+class NoteRequest(ShipRequest):
+    title: str
+    contents: str
+    coords: Position
+
+class NoteRemoveRequest(ShipRequest):
+    coords: Position
 
 class BuyRequest(NonCombatRequest):
     name: str
@@ -240,11 +245,33 @@ async def get_notes(request: NoteRequest):
     if document == None:
         raise AuthError("invalid token")
     user = User.model_validate(document)
-    # if request.note.coords 
-    # user.notes.upsert(request.note)
-    
+    notes = user.notes
+    edited_note = None
+    for note in notes:
+        if request.coords == note.coords:
+            edited_note = note
+            break
+    if edited_note == None:
+        edited_note = Note(title=request.title, contents=request.contents, original_timestamp=datetime.now(), edited_timestamp=datetime.now(), coords=request.coords)
+        user.notes.append(edited_note)
+    else:
+        edited_note.title = request.title
+        edited_note.contents = request.contents
+        edited_note.edited_timestamp = datetime.now()
+    user.save()
+    return edited_note
 
-
+@app.post("/notes/remove")
+async def get_notes(request: NoteRemoveRequest):
+    document = users.find_one({"username": request.token.username})
+    if document == None:
+        raise AuthError("invalid token")
+    user = User.model_validate(document)
+    notes = user.notes
+    for note in notes:
+        if request.coords == note.coords:
+            user.notes.remove(note)
+            user.save()
 
 @app.post("/register")
 async def register(request: RegistrationRequest):

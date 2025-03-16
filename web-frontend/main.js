@@ -142,6 +142,18 @@ async function uninstall(item_id) {
     return await send_request("/cargo/uninstall", {token: token, item_id: item_id});
 }
 
+async function get_notes() {
+    return await send_request("/notes/get", {token: token});
+}
+
+async function push_note(title, contents, coords) {
+    return await send_request("/notes/push", {token: token, title, contents, coords});
+}
+
+async function push_note_remove(coords) {
+    return await send_request("/notes/remove", {token: token, coords});
+}
+
 function print_newline_to_log() {
     const log_element = document.querySelector(".log");
     const message_element = log_element.appendChild(document.createElement("p"));
@@ -164,6 +176,10 @@ function add_divider_to_log(){
     log_element.scrollTo(0, log_element.scrollHeight)
 }
 
+function coords_to_str(coords){
+    return `${coords.x}, ${coords.y}, ${coords.z}`
+}
+
 
 
 window.addEventListener("load", async ()=>{
@@ -181,6 +197,7 @@ window.addEventListener("load", async ()=>{
         location.replace("/shipyard.html");
         return;
     }
+   
     liveTimer()
     setInterval(liveTimer, 1000)
     const logout_button = document.querySelector(".logout");
@@ -191,9 +208,79 @@ window.addEventListener("load", async ()=>{
     const note_button = document.querySelector(".notebook");
     note_button.addEventListener("click", async () => {
         const notebook_window = document.body.appendChild(document.createElement("div"));
-            notebook_window.classList.add("popup");
-            const funds_on_hand = notebook_window.appendChild(document.createElement("p"))
-            funds_on_hand.textContent = `Funds available: ${ship.money}\u20A2`
+        notebook_window.classList.add("popup");
+        notebook_window.classList.add("no-scroll");
+
+        const notebook_sub_window = notebook_window.appendChild(document.createElement("div"));
+        notebook_sub_window.classList.add("note-container")
+        const note_overview = notebook_sub_window.appendChild(document.createElement("div"));
+        note_overview.classList.add("note-overview")
+        const note_detail_view = notebook_sub_window.appendChild(document.createElement("div"));
+        const panel = note_detail_view.appendChild(document.createElement("textarea"));
+        note_detail_view.classList.add("note-detail-view");
+        panel.classList.add("panel");
+
+        const exit_button = notebook_window.appendChild(document.createElement("button"));
+        exit_button.textContent = "X"
+        exit_button.classList.add("x-button")
+        exit_button.addEventListener("click", () => {
+            notebook_window.remove()
+        })
+
+        let note_coords = new Set();
+        function add_note(note) {
+            const note_open_button = note_overview.appendChild(document.createElement("button"))
+            note_open_button.classList.add("note-open-button")
+            note_open_button.textContent = `${note.title} - ${note.coords.x}/${note.coords.y}/${note.coords.z} - ${note.edited_timestamp} UTC`
+            note_open_button.addEventListener("click", () => {
+                open_note = note;
+                panel.value = note.contents;
+            })
+            note_coords.add(coords_to_str(note.coords));
+            const note_close_button = note_open_button.appendChild(document.createElement("button"))
+            // &#x1F5D1; is a trashcan icon
+            note_close_button.innerHTML = `&#x1F5D1;`;
+            note_close_button.addEventListener("click", () => {
+                push_note_remove(note.coords);
+                note_open_button.remove();
+                note_coords.delete(coords_to_str(note.coords))
+                if (coords_to_str(note.coords) == coords_to_str(ship.coords)) {
+                    new_note_button.style.display = "inherit"
+                }
+            })
+        }
+
+        let open_note = null;
+        const [ship, ] = await get_ship();
+
+        const new_note_button = note_overview.appendChild(document.createElement("button"))
+        new_note_button.textContent = "Add New Note";
+        new_note_button.addEventListener("click", async () => {
+            if (note_coords.has(coords_to_str(ship.coords))) {
+                return;
+            }
+            open_note = await push_note("New Note", "", ship.coords);
+            add_note(open_note);
+            panel.value = open_note.contents;
+            new_note_button.style.display = "none";
+        })
+
+        panel.addEventListener("change", async () => {
+            if (!open_note) {
+                return;
+            }
+            open_note.contents = panel.value;
+            await push_note(open_note.title, open_note.contents, open_note.coords);
+        })
+
+        const notes = await get_notes()
+        for (const note of notes) {
+            add_note(note);
+        }
+
+        if (note_coords.has(coords_to_str(ship.coords))) {
+            new_note_button.style.display = "none";
+        }
     })
     main_loop();
 });

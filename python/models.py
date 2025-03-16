@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, AliasChoices
 from bson import ObjectId
 from typing import Annotated, Optional, Any
 from pydantic.functional_validators import BeforeValidator
+from pydantic.functional_serializers import PlainSerializer
 from enum import Enum
 import random
 import string
@@ -22,6 +23,22 @@ class EventType(str, Enum):
     TIME_PASSED="Time Passed"
     DAMAGE_TAKEN="Damage Taken"
     DODGED="Dodged"
+
+
+TIME_FORMAT = "%H:%M %m-%d-%y"
+
+
+def get_time_str(timestamp: datetime) -> str:
+    return timestamp.strftime(TIME_FORMAT)
+
+def unget_time_str(time_str: str | datetime) -> datetime:
+    if isinstance(time_str, datetime):
+        return time_str
+    else:
+        return datetime.strptime(time_str, TIME_FORMAT)
+    
+
+Timestamp = Annotated[datetime, PlainSerializer(get_time_str), BeforeValidator(unget_time_str)]
 
 def generate_ship_name() -> str:
     ship_names = ("TestPirate I", "TestPirate II", "TestPirate III", "TestPirate IV", "TestPirate V")
@@ -188,10 +205,10 @@ class Ship(DatabaseEntry):
 
 class Note(BaseModel):
     title: str
-    content: str
+    contents: str
     coords: Position
-    original_timestamp: datetime
-    edited_timestamp: datetime
+    original_timestamp: Timestamp
+    edited_timestamp: Optional[Timestamp] = None
 
 
 class User(DatabaseEntry):

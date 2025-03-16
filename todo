@@ -2,14 +2,15 @@ to do:
     -death animation 
     -implement economy/profit/loot features
     -implement ship upgrades
-    -implement other weapon types 
-    -implement map
-
-possible to do:
+    -implement other weapon types
     -fuel
     -cargo destruction
+  
+
+possible to do:
+
     -hireable guards
     -market fluctuations
     -power tiers (loot colors?)
     -factions/faction rep
-
+    -implement map
