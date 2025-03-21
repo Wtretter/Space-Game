@@ -24,6 +24,13 @@ window.addEventListener("load", async ()=>{
     const create_button = document.querySelector(".create-ship");
     create_button.addEventListener("click", async () => {
         const ship_name = document.querySelector(".ship-name").value;
+        if (ship_name == "") {
+            const column = document.querySelector(".column");
+            const bad_shipname_text = column.appendChild(document.createElement("p"));
+            bad_shipname_text.textContent = "\n \"Ship Name\" may not be empty";
+            bad_shipname_text.style.color = "red";
+            throw Error(`ship_name input empty str`)
+        }
         token = JSON.parse(localStorage.getItem("token"))
         await create_ship(ship_name)
 

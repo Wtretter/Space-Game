@@ -32,3 +32,8 @@ body {
 .button_row {
     margin-left: 90px;
 }
+
+.info_text {
+    align-items: center;
+    justify-content: center;
+}
