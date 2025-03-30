@@ -1,3 +1,4 @@
+import { fatal_error } from "./error.js";
 import {base_url} from "./settings.js";
 
 
@@ -9,12 +10,7 @@ async function login(username, password) {
     });
     console.log(response)
     if (response.status != 200) {
-        const info_text = document.querySelector(".info_text");
-        const incorrect_pw_text = info_text.appendChild(document.createElement("p"));
-        incorrect_pw_text.textContent = "\n Incorrect username or password";
-        incorrect_pw_text.style.color = "red";
-
-        throw Error(`${response.status} ${response.statusText}: ${await response.text()}`);
+        fatal_error(`Incorrect username or password`);
     }
     return (await response.json())[1];
 }
@@ -37,21 +33,12 @@ window.addEventListener("load", async ()=>{
     const register_button = document.querySelector(".register");
     login_button.addEventListener("click", async () => {
         const username = document.querySelector(".username").value;
-        if (username == "") {
-            const info_text = document.querySelector(".info_text");
-            const bad_username_text = info_text.appendChild(document.createElement("p"));
-            bad_username_text.textContent = "\n Username may not be empty";
-            bad_username_text.style.color = "red";
-            throw Error(`username input empty str`);
-
+        if (username.length == 0) {
+            fatal_error("Username may not be empty");
         }
         const password = document.querySelector(".password").value;
-        if (password == "") {
-            const info_text = document.querySelector(".info_text");
-            const bad_pw_text = info_text.appendChild(document.createElement("p"));
-            bad_pw_text.textContent = "\n Password may not be empty";
-            bad_pw_text.style.color = "red";
-            throw Error(`password input empty str`);
+        if (password.length == 0) {
+            fatal_error("Password may not be empty");
 
         }
         const token = await login(username, password)

@@ -275,3 +275,16 @@ canvas {
     align-items: center;
 }
 
+.funds-icon {
+    width: 16px;
+    height: 16px;
+    margin-left: 4px;
+    margin-bottom: 2px;
+}
+
+.ship-info-paragraph {
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: center;
+    justify-content: center;
+}

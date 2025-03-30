@@ -426,7 +426,11 @@ async function non_combat_loop(ship, station) {
             const buy_window = document.body.appendChild(document.createElement("div"));
             buy_window.classList.add("popup");
             const funds_on_hand = buy_window.appendChild(document.createElement("p"))
-            funds_on_hand.textContent = `Funds available: ${ship.money}\u20A2`
+            funds_on_hand.textContent = `Funds available: ${ship.money}`
+            const funds_icon = buy_window.appendChild(document.createElement("img"))
+            funds_icon.src = "/currency.png"
+            funds_icon.classList.add("funds-icon")
+
             funds_on_hand.classList.add("popup-window-funds")
             for (const buy_item of station.sale_goods) {
                 const item_button = buy_window.appendChild(document.createElement("button"))
@@ -574,31 +578,40 @@ function print_ship(ship) {
     const ship_info = document.querySelector(".ship-info");
     ship_info.innerHTML = ""
     const name_element = ship_info.appendChild(document.createElement("p"));
+    name_element.classList.add("ship-info-paragraph")
     name_element.textContent = "Ship name: " + ship.name;
 
     const coords_element = ship_info.appendChild(document.createElement("p"));
+    coords_element.classList.add("ship-info-paragraph")
     coords_element.textContent = `Coords: X:${ship.coords.x} | Y:${ship.coords.y} | Z:${ship.coords.z}`
 
     const hp_element = ship_info.appendChild(document.createElement("p"));
+    hp_element.classList.add("ship-info-paragraph")
     hp_element.textContent = "Hull: " + +ship.hitpoints.toFixed(2);
 
     const cargo_label = ship_info.appendChild(document.createElement("p"));
+    cargo_label.classList.add("ship-info-paragraph")
     cargo_label.textContent = "Cargo: " + ship.cargo.length + "/" + ship.cargo_space;
     const cargo_list_element = ship_info.appendChild(document.createElement("div"));
     for (const trade_good of ship.cargo) {
         const cargo_element = cargo_list_element.appendChild(document.createElement("p"));
+        cargo_element.classList.add("ship-info-paragraph")
         cargo_element.textContent = `- ${trade_good.name} ${trade_good.serial_number}`;
     }
 
     const money_element = ship_info.appendChild(document.createElement("p"));
-    money_element.textContent = `Funds: ${ship.money}\u20A2`;
+    money_element.classList.add("ship-info-paragraph")
+    money_element.textContent = `Funds: ${ship.money}`;
+    const funds_icon = money_element.appendChild(document.createElement("img"))
+    funds_icon.src = "/currency.png"
+    funds_icon.classList.add("funds-icon")
 }
 
 function print_station(station) {
     print_to_log(`Station name: ${station.name}`)
     print_to_log("Goods for sale:")
     for (const trade_good of station.sale_goods) {
-        print_to_log(`- ${trade_good.name} for ${trade_good.buy_price}\u20A2`)
+        print_to_log(`- ${trade_good.name} for ${trade_good.buy_price} credits`)
     }
 }
 

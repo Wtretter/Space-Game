@@ -1,4 +1,5 @@
 import {base_url} from "./settings.js";
+import {fatal_error} from "./error.js";
 let token = null;
 
 
@@ -25,11 +26,10 @@ window.addEventListener("load", async ()=>{
     create_button.addEventListener("click", async () => {
         const ship_name = document.querySelector(".ship-name").value;
         if (ship_name == "") {
-            const column = document.querySelector(".column");
-            const bad_shipname_text = column.appendChild(document.createElement("p"));
-            bad_shipname_text.textContent = "\n \"Ship Name\" may not be empty";
-            bad_shipname_text.style.color = "red";
-            throw Error(`ship_name input empty str`)
+            fatal_error(`"Ship Name" may not be empty`);
+        }
+        if (ship_name.length > 32) {
+            fatal_error(`ship_name input too long, max length 32 char`);
         }
         token = JSON.parse(localStorage.getItem("token"))
         await create_ship(ship_name)

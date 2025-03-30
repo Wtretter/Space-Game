@@ -294,6 +294,8 @@ async def login(request: LoginRequest):
 
 @app.post("/ship/create")
 async def handle_create_ship(request: CreateShipRequest):
+    if len(request.ship_name) > 32:
+        raise ClientError("Ship name too long, max 32 char")
     return create_ship(request.ship_name, request.token.username)
 
 @app.post("/ship/get")

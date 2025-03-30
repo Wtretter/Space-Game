@@ -31,3 +31,7 @@ export async function error(string) {
 
 }
 
+export function fatal_error(string) {
+    error(string);
+    throw Error(string);
+}
