@@ -2,9 +2,8 @@ import {Future, Sleep} from "./Async.js";
 import {error, register_error_callback} from "./error.js";
 import {Scene, ShipNode, LaserNode, DamageNode } from "./scene.js";
 import {RandBetween} from "./utils.js";
+import {base_url} from "./settings.js";
 
-
-const base_url = window.location.protocol+"//"+window.location.hostname+":42000";
 let token = null;
 let gamespeed = 5;
 

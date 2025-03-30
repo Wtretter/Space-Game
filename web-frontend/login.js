@@ -1,4 +1,4 @@
-const base_url = window.location.protocol+"//"+window.location.hostname+":42000";
+import {base_url} from "./settings.js";
 
 
 async function login(username, password) {
