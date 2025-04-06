@@ -136,7 +136,7 @@ def piracy_check(ship: Ship) -> bool:
     if ship.no_pirates:
         return False
     else:
-        # return True
+        return True
         return (
             (
                 ship.cargo_used
@@ -147,29 +147,63 @@ def piracy_check(ship: Ship) -> bool:
                 - (ship.hitpoints - 100)
             ) >= random.randint(1,10000)
         )
+    
+def load_item(item_name: str) -> InventoryItem:
+    item = InventoryItem.model_validate(goods.find_one({"name": item_name}))
+    item.id = generate_id()
+    return item
 
 def generate_pirate(ship: Ship) -> PirateShip:
-    ship_danger = (ship.cargo_used + abs(ship.coords.x) + abs(ship.coords.y) + abs(ship.coords.z))
+    ship_value = 0
+    for item in ship.cargo:
+        ship_value += item.buy_price
+    for item in ship.installed_items:
+        ship_value += item.buy_price
+
+    attackers: list[PirateShip] = []
+
+    ship_danger = (ship_value + abs(ship.coords.x) + abs(ship.coords.y) + abs(ship.coords.z))
     if ship_danger <= 250:
         # low level pirate
         attacker = PirateShip(hitpoints=25, max_hitpoints=25, bravery=random.randint(5,30), bribe=.05)
+        attacker.installed_items.append(load_item("Mining Laser"))
+        attackers.append(attacker)
+        attacker = PirateShip(hitpoints=25, max_hitpoints=25, bravery=random.randint(5,30), bribe=.05)
+        attacker.installed_items.append(load_item("Mining Laser"))
+        attackers.append(attacker)
+
+
     elif ship_danger <= 1000:
         # mid level pirate
         attacker = PirateShip(hitpoints=250, max_hitpoints=250, bravery=random.randint(25,500), bribe=.35)
+        attacker.installed_items.append(load_item("Military Laser"))
+        attackers.append(attacker)
+        
     elif ship_danger <= 10000:
         # high level pirate
         attacker = PirateShip(hitpoints=400, max_hitpoints=400, bravery=random.randint(75,1000), bribe=.75)
+        attacker.installed_items.append(load_item("Military Laser"))
+        attacker.installed_items.append(load_item("Military Laser"))
+        attacker.installed_items.append(load_item("Military Laser"))
+        attacker.installed_items.append(load_item("Military Laser"))
+        attackers.append(attacker)
     else:
-        # you are either too dangerous or too far out to attack
-        attacker = PirateShip(hitpoints=0, bravery=0, bribe=0)
+        # max level pirate
+        attacker = PirateShip(hitpoints=2500, max_hitpoints=2500, bravery=10000, bribe=1)
+        attacker.installed_items.append(load_item("Military Laser"))
+        attacker.installed_items.append(load_item("Military Laser"))
+        attacker.installed_items.append(load_item("Military Laser"))
+        attacker.installed_items.append(load_item("Military Laser"))
+        attacker.installed_items.append(load_item("Military Laser"))
+        attacker.installed_items.append(load_item("Military Laser"))
+        attacker.installed_items.append(load_item("Military Laser"))
+        attacker.installed_items.append(load_item("Military Laser"))
+        attackers.append(attacker)
 
-    laser_document = goods.find_one({"name": "Mining Laser"})
-    starter_laser = InventoryItem.model_validate(laser_document)
-    attacker.installed_items.append(starter_laser)
-
-    ship.enemies.append(attacker.id)
-    attacker.save()
-    return attacker
+    for attacker in attackers:
+        ship.enemies.append(attacker.id)
+        attacker.save()
+    return attackers
 
 def create_ship(shipname: str, username: str) -> Ship:
     user = User.model_validate(users.find_one({"username": username}))
@@ -377,23 +411,48 @@ async def cargo_uninstall(request: ItemRequest):
     ship.save()
     return ship
 
-@app.post("/upgrade/hull")
+@app.post("/repair/hull")
 async def upgrade_hull(request: NonCombatRequest):
     ship = request.ship
     if ship.money <= 0:
-        raise ClientError("no money!")
+        raise ClientError("no money")
+    if ship.hitpoints >= ship.max_hitpoints:
+        raise ClientError("hull not damaged")
     ship.money -= 1
     ship.hitpoints += 25
+    if ship.hitpoints >= ship.max_hitpoints:
+        ship.hitpoints = ship.max_hitpoints
+    ship.save()
+    return ship
+
+@app.post("/upgrade/hull")
+async def upgrade_hull(request: NonCombatRequest):
+    ship = request.ship
+    if ship.money < 10:
+        raise ClientError("not enough money")
+    ship.money -= 10
+    ship.hitpoints += 10
+    ship.max_hitpoints += 10
     ship.save()
     return ship
 
 @app.post("/upgrade/cargo")
 async def upgrade_cargo(request: NonCombatRequest):
     ship = request.ship
-    if ship.money <= 0:
-        raise ClientError("no money!")
-    ship.money -= 1
-    ship.cargo_space += 5
+    if ship.money < 5:
+        raise ClientError("not enough money")
+    ship.money -= 5
+    ship.cargo_space += 1
+    ship.save()
+    return ship
+
+@app.post("/upgrade/slots")
+async def upgrade_slots(request: NonCombatRequest):
+    ship = request.ship
+    if ship.money < 25:
+        raise ClientError("not enough money")
+    ship.money -= 25
+    ship.install_space += 1
     ship.save()
     return ship
 
@@ -463,16 +522,22 @@ async def handle_fight(request: CombatRequest):
                 log.append(LogEvent(type=EventType.ITEM_USED, contents=fight_item.item.id))
                 fight_item.use(ship, attackers, log)
                 fight_item.cooldown = fight_item.item.cooldown
-        
-        for attacker in attackers:
+        print("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        print(ship.enemies)
+        print(attackers)
+        for attacker in list(attackers):
             if attacker.hitpoints <= 0:
+                attackers.remove(attacker)
                 ship.enemies.remove(attacker.id)
                 log.append(LogEvent(type=EventType.SHIP_DESTROYED, contents=attacker.id))
                 fight_items = [fight_item for fight_item in fight_items if fight_item.ship != attacker]
+                ship.money += round(attacker.bribe * attacker.bribe * random.randint(500,1000))
                 attacker.delete()
 
         if ship.hitpoints <= 0:
             log.append(LogEvent(type=EventType.SHIP_DESTROYED, contents=ship.id))
+            for attacker in attackers:
+                attacker.delete()
             ship.delete()
             users.update_one({"username": request.token.username}, {"$inc":{"lost_ships":1}})
             ship = create_ship(ship.name, request.token.username)
@@ -484,7 +549,7 @@ async def handle_fight(request: CombatRequest):
         time_elapsed = fight_items[0].cooldown
         for fight_item in fight_items:
             fight_item.cooldown -= time_elapsed
-        log.append(LogEvent(type=EventType.TIME_PASSED, contents=time_elapsed))        
+        log.append(LogEvent(type=EventType.TIME_PASSED, contents=time_elapsed))       
     ship.save()
     return log
 

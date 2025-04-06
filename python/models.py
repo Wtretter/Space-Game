@@ -149,7 +149,7 @@ class FightItem(BaseModel):
                 target.hitpoints -= attack_damage
                 log.append(LogEvent(type=EventType.DAMAGE_TAKEN, contents=(self.ship.id, target.id, attack_damage, self.item.damage_type)))
             else:
-                log.append(LogEvent(type=EventType.DODGED, contents=target.id))
+                log.append(LogEvent(type=EventType.DODGED, contents=(self.ship.id, target.id, self.item.damage_type)))
 class Station(BaseModel):
     name: str
     sale_goods: list[InventoryItem]

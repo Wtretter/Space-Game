@@ -1,14 +1,10 @@
 to do:
-    -fix mobile browser view
-    -implement css for shipyard
-    -death animation 
-    -implement economy/profit/loot features
-    -implement ship upgrades
+    -implement economy
+    -notify players of # of enemies while able to run
+    -implement clientside errors for uninstalling/installing 
     -implement other weapon types
     -fuel
     -cargo destruction
-    -make api base URl configurable 
-    -money icon doesnt load on mobile
 
 possible to do:
 
@@ -17,3 +13,4 @@ possible to do:
     -power tiers (loot colors?)
     -factions/faction rep
     -implement map
+    -fix mobile browser view

@@ -288,3 +288,8 @@ canvas {
     align-items: center;
     justify-content: center;
 }
+
+.ship-info-paragraph.item-list-element {
+    font-size: small;
+    opacity: 90%;
+}

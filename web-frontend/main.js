@@ -1,8 +1,9 @@
 import {Future, Sleep} from "./Async.js";
 import {error, register_error_callback} from "./error.js";
 import {Scene, ShipNode, LaserNode, DamageNode } from "./scene.js";
-import {RandBetween} from "./utils.js";
+import {RandBetween, RandChoice} from "./utils.js";
 import {base_url} from "./settings.js";
+import {Vector2} from "./vector.js";
 
 let token = null;
 let gamespeed = 5;
@@ -127,6 +128,22 @@ async function send_request(endpoint, data) {
 
 async function buy(name) {
     return await send_request("/cargo/buy", {token: token, name: name});
+}
+
+async function upgrade_hull() {
+    return await send_request("/upgrade/hull", {token: token})
+}
+
+async function repair_hull() {
+    return await send_request("/repair/hull", {token: token})
+}
+
+async function upgrade_cargo() {
+    return await send_request("/upgrade/cargo", {token: token})
+}
+
+async function upgrade_install_space() {
+    return await send_request("/upgrade/slots", {token: token})
 }
 
 async function sell(item_id) {
@@ -294,21 +311,22 @@ async function display_combat(ship, enemies, log) {
     const locations_by_id = {
         [ship.id]: [canvas.width/2, canvas.height-100]
     };
-    for (const attacker of enemies) {
-        locations_by_id[attacker.id] = [canvas.width/2, 100]
-    }
     const nodes_by_id = {};
 
     const scene = new Scene(canvas);
     scene.start();
     const shipNode = new ShipNode(true, canvas.width/2, canvas.height-60, ship.hitpoints/ship.max_hitpoints, ship.name);
-    scene.nodes.push(shipNode);
+    scene.add_node(shipNode)
     nodes_by_id[ship.id] = shipNode;
-
+    const enemy_spacer = 60
+    let enemies_width = enemies.length * 50 + enemy_spacer * (enemies.length - 1);
+    let enemy_offset = canvas.width / 2 - enemies_width / 2 + 25;
     for (const enemy of enemies) {
-        const enemyNode = new ShipNode(false, canvas.width/2, 60, enemy.hitpoints/enemy.max_hitpoints, enemy.name);
-        scene.nodes.push(enemyNode);
+        const enemyNode = new ShipNode(false, enemy_offset, 60, enemy.hitpoints/enemy.max_hitpoints, enemy.name);
+        scene.add_node(enemyNode);
         nodes_by_id[enemy.id] = enemyNode;
+        locations_by_id[enemy.id] = [enemy_offset, 100];
+        enemy_offset += 50 + enemy_spacer;
     }
     
     let current_time = 0
@@ -338,7 +356,7 @@ async function display_combat(ship, enemies, log) {
             const incoming = locations_by_id[target_id];
 
             const damage_node = new DamageNode("white", +amount.toFixed(2), incoming[0], incoming[1]);
-            scene.nodes.push(damage_node);
+            scene.add_node(damage_node);
 
             print_to_log(`${target_ship.name} took ${+amount.toFixed(2)} damage`);
 
@@ -354,7 +372,7 @@ async function display_combat(ship, enemies, log) {
                 }
 
                 const laser = new LaserNode(color, outgoing[0] + RandBetween(-25, 25), outgoing[1], incoming[0] + RandBetween(-25, 25), incoming[1]);
-                scene.nodes.push(laser);
+                scene.add_node(laser);
             }
         } else if (event.type == "Item Used") {
             const [name, ship] = items_by_id[event.contents];
@@ -362,18 +380,36 @@ async function display_combat(ship, enemies, log) {
             print_to_log(`${current_time.toFixed(2)}s ${ship.name} used ${name}`);
         } else if (event.type == "Ship Destroyed") {
             const dead_ship = ships_by_id[event.contents];
+            const dead_ship_node = nodes_by_id[event.contents];
+            dead_ship_node.explode()
             print_newline_to_log();
             print_to_log(`${dead_ship.name} was destroyed`);
         } else if (event.type == "Dodged") {
-            const dodger = ships_by_id[event.contents];
-            print_to_log(`${dodger.name} Dodged`);
+            let [source_id, target_id, damage_type] = event.contents;
+            const target_ship = ships_by_id[target_id];
+            const outgoing = locations_by_id[source_id];
+            const incoming = locations_by_id[target_id];
+            print_to_log(`${target_ship.name} Dodged`);
+            if (damage_type == "Laser") {
+                let color;
+                if (source_id == ship.id) {
+                    color = "green";
+                } else {
+                    color = "red";
+                }
+                let vector = new Vector2(incoming[0] + RandChoice([-30, 30]), incoming[1]);
+                vector.subtract(new Vector2(outgoing[0], outgoing[1]));
+                vector = vector.multiply(100)
+                vector.add(new Vector2(outgoing[0], outgoing[1]));
+                const laser = new LaserNode(color, outgoing[0] + RandBetween(-25, 25), outgoing[1], vector.x, vector.y);
+                scene.add_node(laser);
+            }
         }
-
         else {
             print_to_log(`${event.type} - ${event.contents}`);
         }
     }
-    await Sleep(1000);
+    await Sleep(5000);
     scene.stop();
 }
 
@@ -432,6 +468,59 @@ async function non_combat_loop(ship, station) {
             funds_icon.classList.add("funds-icon")
 
             funds_on_hand.classList.add("popup-window-funds")
+
+            const hull_upgrade_button = buy_window.appendChild(document.createElement("button"))
+            hull_upgrade_button.textContent = `10 hull upgrade for 10\u20A2`
+            hull_upgrade_button.addEventListener("click", async () => {
+                if (ship.money < 10) {
+                    error("Insufficient Funds");
+                } else {
+                    upgrade_hull();
+                    ship.money -= 10
+                    funds_on_hand.textContent = `Funds available: ${ship.money}`
+                }
+            });
+
+            const hull_repair_button = buy_window.appendChild(document.createElement("button"))
+            hull_repair_button.textContent = `25 hull repair for 1\u20A2`
+            hull_repair_button.addEventListener("click", async () => {
+                if (ship.money < 1) {
+                    error("Insufficient Funds");
+                } else if (ship.hitpoints >= ship.max_hitpoints) {
+                    error("Hull not damaged")
+                } else {
+                    repair_hull();
+                    ship.money -= 1
+                    funds_on_hand.textContent = `Funds available: ${ship.money}`
+                    ship.hitpoints += 25;
+                }
+            });
+
+            const upgrade_cargo_button = buy_window.appendChild(document.createElement("button"))
+            upgrade_cargo_button.textContent = `1 additional cargo space for 5\u20A2`
+            upgrade_cargo_button.addEventListener("click", async () => {
+                if (ship.money < 5) {
+                    error("Insufficient Funds");
+                } else {
+                    upgrade_cargo();
+                    ship.money -= 5
+                    funds_on_hand.textContent = `Funds available: ${ship.money}`
+                }
+            });
+
+            const upgrade_slots_button = buy_window.appendChild(document.createElement("button"))
+            upgrade_slots_button.textContent = `1 additional install space for 25\u20A2`
+            upgrade_slots_button.addEventListener("click", async () => {
+                if (ship.money < 25) {
+                    error("Insufficient Funds");
+                } else {
+                    upgrade_install_space();
+                    ship.money -= 25
+                    funds_on_hand.textContent = `Funds available: ${ship.money}`
+                }
+            });
+
+
             for (const buy_item of station.sale_goods) {
                 const item_button = buy_window.appendChild(document.createElement("button"))
                 item_button.textContent = `${buy_item.name} for ${buy_item.buy_price}\u20A2`
@@ -587,7 +676,25 @@ function print_ship(ship) {
 
     const hp_element = ship_info.appendChild(document.createElement("p"));
     hp_element.classList.add("ship-info-paragraph")
-    hp_element.textContent = "Hull: " + +ship.hitpoints.toFixed(2);
+    hp_element.textContent = `Hull: ${+ship.hitpoints.toFixed(2)}/${ship.max_hitpoints}`;
+
+    const money_element = ship_info.appendChild(document.createElement("p"));
+    money_element.classList.add("ship-info-paragraph")
+    money_element.textContent = `Funds: ${ship.money}`;
+    const funds_icon = money_element.appendChild(document.createElement("img"))
+    funds_icon.src = "/currency.png"
+    funds_icon.classList.add("funds-icon")
+
+    const installed_items_label = ship_info.appendChild(document.createElement("p"));
+    installed_items_label.classList.add("ship-info-paragraph")
+    installed_items_label.textContent = "Installed Items: " + ship.installed_items.length + "/" + ship.install_space;
+    const installed_element_div = ship_info.appendChild(document.createElement("div"));
+    for (const installed_item of ship.installed_items) {
+        const installed_element = installed_element_div.appendChild(document.createElement("p"));
+        installed_element.classList.add("ship-info-paragraph");
+        installed_element.classList.add("item-list-element");
+        installed_element.textContent = `- ${installed_item.name} ${installed_item.serial_number}`;
+    }
 
     const cargo_label = ship_info.appendChild(document.createElement("p"));
     cargo_label.classList.add("ship-info-paragraph")
@@ -596,16 +703,11 @@ function print_ship(ship) {
     for (const trade_good of ship.cargo) {
         const cargo_element = cargo_list_element.appendChild(document.createElement("p"));
         cargo_element.classList.add("ship-info-paragraph")
+        cargo_element.classList.add("item-list-element");
         cargo_element.textContent = `- ${trade_good.name} ${trade_good.serial_number}`;
     }
-
-    const money_element = ship_info.appendChild(document.createElement("p"));
-    money_element.classList.add("ship-info-paragraph")
-    money_element.textContent = `Funds: ${ship.money}`;
-    const funds_icon = money_element.appendChild(document.createElement("img"))
-    funds_icon.src = "/currency.png"
-    funds_icon.classList.add("funds-icon")
 }
+  
 
 function print_station(station) {
     print_to_log(`Station name: ${station.name}`)

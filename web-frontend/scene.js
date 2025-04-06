@@ -1,5 +1,6 @@
 import {Sleep} from "./Async.js";
 import {RandBetween} from "./utils.js";
+import {Vector2} from "./vector.js";
 
 export class Node{
     /** @type {Number} */
@@ -17,12 +18,16 @@ export class Node{
     /** @type {Boolean} */
     queued_for_anim;
 
+    /** @type {Scene} */
+    parent_scene;
+
     constructor(color, x, y) {
         this.color = color;
         this.x = x;
         this.y = y;
         this.queued_for_removal = false;
         this.queued_for_anim = true;
+        this.parent_scene = null;
     }
 
     /** @param {CanvasRenderingContext2D} ctx */
@@ -76,8 +81,17 @@ export class ShipNode extends Node{
         } else {
             ctx.fillText(this.name, this.x, this.y-45);
         }
-        
-
+    }
+    explode() {
+        for (let x = 0; x < 50; x += 5) {
+            for (let y = 0; y < 80; y += 5) {
+                const trajectory = new Vector2(Math.random() * 20 + 15, 0)
+                trajectory.rotate(Math.random() * 2 * Math.PI)
+                const square = new ShipDebris(this.color, this.x - 25 + x, this.y - 40 + y, trajectory, new Vector2(this.x, this.y))
+                this.scene.add_node(square)
+            }
+        }
+        this.remove()
     }
 }
 
@@ -108,6 +122,37 @@ export class DamageNode extends TempNode{
         this.opacity -= delta * 0.001
     }
 }
+
+class ShipDebris extends TempNode{
+    /** @type {Vector2} */
+    trajectory;
+    /** @type {Vector2} */
+    ship_vector;
+
+    constructor(color, x, y, trajectory, ship_vector) {
+        super(color, x, y);
+        this.trajectory = trajectory;
+        this.lifetime = 10000;
+        this.ship_vector = ship_vector;
+    }
+
+    /** @param {Number} delta */
+    animate(delta) {
+        super.animate(delta);
+        const deltaTrajectory = this.trajectory.multiply(delta / 1000);
+        this.x += deltaTrajectory.x;
+        this.y += deltaTrajectory.y;
+    }
+
+    /** @param {CanvasRenderingContext2D} ctx */
+    draw(ctx){
+        ctx.fillStyle = this.color;
+        ctx.globalAlpha = Math.max((100 - this.ship_vector.distance(new Vector2(this.x, this.y))) / 20, 0);
+        ctx.fillRect(this.x, this.y, 5, 5);
+        ctx.globalAlpha = 1.0
+    }
+}
+
 export class LaserNode extends TempNode{
     /** @type {Number} */
     target_x;
@@ -148,6 +193,12 @@ export class Scene{
         this.nodes = [];
         this.running = false;
         this.max_fps = 60;
+    }
+
+    /** @param {Node} node */
+    add_node(node) {
+        this.nodes.push(node);
+        node.scene = this;
     }
     
     draw() {
