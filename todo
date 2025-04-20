@@ -1,10 +1,11 @@
 to do:
+    -finish settings page
     -implement economy
-    -notify players of # of enemies while able to run
     -implement clientside errors for uninstalling/installing 
     -implement other weapon types
     -fuel
     -cargo destruction
+    -hover info text
 
 possible to do:
 

@@ -1,5 +1,5 @@
 import { fatal_error } from "./error.js";
-import {base_url} from "./settings.js";
+import {base_url} from "./config.js";
 
 
 async function login(username, password) {
@@ -42,7 +42,6 @@ window.addEventListener("load", async ()=>{
 
         }
         const token = await login(username, password)
-        console.log(token)
 
         if (token != null) {
             localStorage.setItem("token", JSON.stringify(token))

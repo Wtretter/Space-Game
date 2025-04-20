@@ -2,12 +2,16 @@ import {Future, Sleep} from "./Async.js";
 import {error, register_error_callback} from "./error.js";
 import {Scene, ShipNode, LaserNode, DamageNode } from "./scene.js";
 import {RandBetween, RandChoice} from "./utils.js";
-import {base_url} from "./settings.js";
+import {base_url} from "./config.js";
 import {Vector2} from "./vector.js";
+import {gamespeed as gamespeed_setting} from "./config.js"
 
+let gamespeed = gamespeed_setting.value
 let token = null;
-let gamespeed = 5;
+let is_typing = false;
+let on_keydown = null;
 
+console.log("Game Speed", gamespeed);
 console.log("BASE URL", base_url);
 
 
@@ -16,6 +20,9 @@ register_error_callback(string => {
     print_to_log(`*${string}*`)
 });
 
+async function scaled_sleep(time_in_ms) {
+    await Sleep(time_in_ms * (10 / gamespeed));
+}
 
 async function get_ship(){
     try {
@@ -216,6 +223,21 @@ window.addEventListener("load", async ()=>{
    
     liveTimer()
     setInterval(liveTimer, 1000)
+
+    window.addEventListener("keydown", (ev)=>{
+        if (is_typing) {
+            return;
+        }
+        if (on_keydown != null) {
+            on_keydown(ev.key);
+        }
+    })
+
+    const settings_button = document.querySelector(".settings");
+    settings_button.addEventListener("click", async () => {
+       location.assign("/settings.html");
+    });
+
     const logout_button = document.querySelector(".logout");
     logout_button.addEventListener("click", async () => {
         localStorage.removeItem("token");
@@ -223,6 +245,7 @@ window.addEventListener("load", async ()=>{
     });
     const note_button = document.querySelector(".notebook");
     note_button.addEventListener("click", async () => {
+        is_typing = true;
         const notebook_window = document.body.appendChild(document.createElement("div"));
         notebook_window.classList.add("popup");
         notebook_window.classList.add("no-scroll");
@@ -240,6 +263,7 @@ window.addEventListener("load", async ()=>{
         exit_button.textContent = "X"
         exit_button.classList.add("x-button")
         exit_button.addEventListener("click", () => {
+            is_typing = false;
             notebook_window.remove()
         })
 
@@ -303,6 +327,8 @@ window.addEventListener("load", async ()=>{
 
 
 async function display_combat(ship, enemies, log) {
+    on_keydown = null;
+
     const ship_info = document.querySelector(".ship-info");
     ship_info.innerHTML = "";
     const canvas = ship_info.appendChild(document.createElement("canvas"));
@@ -346,7 +372,7 @@ async function display_combat(ship, enemies, log) {
     for (const event of log) {
         if (event.type == "Time Passed") {
             current_time += event.contents;
-            await Sleep(event.contents * 1000 * gamespeed);
+            await scaled_sleep(event.contents * 1000);
         } else if (event.type == "Damage Taken") {
             let [source_id, target_id, amount, damage_type] = event.contents;
 
@@ -409,7 +435,7 @@ async function display_combat(ship, enemies, log) {
             print_to_log(`${event.type} - ${event.contents}`);
         }
     }
-    await Sleep(5000);
+    await scaled_sleep(5000);
     scene.stop();
 }
 
@@ -418,38 +444,246 @@ async function combat_loop(ship) {
     inputs_element.innerHTML = "";
     const finished = new Future();
 
-    const attack_button = inputs_element.appendChild(document.createElement("button"));
-    attack_button.textContent = "Attack"
-
-    attack_button.addEventListener("click", async () => {
+    const on_attack = async () => {
         inputs_element.innerHTML = "";
         const enemies = await get_enemies()
         const log = await attack_ship()
         await display_combat(ship, enemies, log)
         finished.resolve()
-    })
+    }
 
-    const run_button = inputs_element.appendChild(document.createElement("button"));
-    run_button.textContent = "Run"
-
-    run_button.addEventListener("click", async () => {
+    const on_run = async () => {
         inputs_element.innerHTML = "";
         const combat_over = await run_away(ship);
         if (combat_over) {
             print_to_log("You have escaped")
         }
         finished.resolve();
-    })
+    }
+
+    const attack_button = inputs_element.appendChild(document.createElement("button"));
+    attack_button.textContent = "1. Attack"
+    attack_button.addEventListener("click", on_attack);
+
+    const run_button = inputs_element.appendChild(document.createElement("button"));
+    run_button.textContent = "2. Run"
+    run_button.addEventListener("click", on_run)
+
+    on_keydown = (key) => {
+        if (key == '1') {
+            on_attack();
+        }
+        else if (key == '2') {
+            on_run();
+        }
+    };
 
     await finished;
 }
 
 async function non_combat_loop(ship, station) {
+    on_keydown = null;
+
     const inputs_element = document.querySelector(".inputs");
     inputs_element.innerHTML = "";
 
     const finished = new Future();
-   
+
+    const on_buy = async () => {
+        const buy_window = document.body.appendChild(document.createElement("div"));
+        buy_window.classList.add("popup");
+        const funds_on_hand = buy_window.appendChild(document.createElement("p"))
+        funds_on_hand.textContent = `Funds available: ${ship.money}`
+        const funds_icon = buy_window.appendChild(document.createElement("img"))
+        funds_icon.src = "/currency.png"
+        funds_icon.classList.add("funds-icon")
+
+        funds_on_hand.classList.add("popup-window-funds")
+
+        const hull_upgrade_button = buy_window.appendChild(document.createElement("button"))
+        hull_upgrade_button.textContent = `10 hull upgrade for 10\u20A2`
+        hull_upgrade_button.addEventListener("click", async () => {
+            if (ship.money < 10) {
+                error("Insufficient Funds");
+            } else {
+                upgrade_hull();
+                ship.money -= 10
+                funds_on_hand.textContent = `Funds available: ${ship.money}`
+            }
+        });
+
+        const hull_repair_button = buy_window.appendChild(document.createElement("button"))
+        hull_repair_button.textContent = `25 hull repair for 1\u20A2`
+        hull_repair_button.addEventListener("click", async () => {
+            if (ship.money < 1) {
+                error("Insufficient Funds");
+            } else if (ship.hitpoints >= ship.max_hitpoints) {
+                error("Hull not damaged")
+            } else {
+                repair_hull();
+                ship.money -= 1
+                funds_on_hand.textContent = `Funds available: ${ship.money}`
+                ship.hitpoints += 25;
+            }
+        });
+
+        const upgrade_cargo_button = buy_window.appendChild(document.createElement("button"))
+        upgrade_cargo_button.textContent = `1 additional cargo space for 5\u20A2`
+        upgrade_cargo_button.addEventListener("click", async () => {
+            if (ship.money < 5) {
+                error("Insufficient Funds");
+            } else {
+                upgrade_cargo();
+                ship.money -= 5
+                funds_on_hand.textContent = `Funds available: ${ship.money}`
+            }
+        });
+
+        const upgrade_slots_button = buy_window.appendChild(document.createElement("button"))
+        upgrade_slots_button.textContent = `1 additional install space for 25\u20A2`
+        upgrade_slots_button.addEventListener("click", async () => {
+            if (ship.money < 25) {
+                error("Insufficient Funds");
+            } else {
+                upgrade_install_space();
+                ship.money -= 25
+                funds_on_hand.textContent = `Funds available: ${ship.money}`
+            }
+        });
+
+
+        for (const buy_item of station.sale_goods) {
+            const item_button = buy_window.appendChild(document.createElement("button"))
+            item_button.textContent = `${buy_item.name} for ${buy_item.buy_price}\u20A2`
+            item_button.addEventListener("click", async () => {
+                if (ship.money < buy_item.buy_price) {
+                    error("Insufficient Funds")
+                } else if (ship.cargo.length >= ship.cargo_space) {
+                    error("Insufficient Cargo Space")
+                } else {
+                    buy(buy_item.name)
+                    ship.money -= buy_item.buy_price
+                    funds_on_hand.textContent = `Funds available: ${ship.money}`
+                    ship.cargo.push(buy_item)
+                    print_newline_to_log()
+                    print_to_log(`bought: ${buy_item.name}`)
+                }
+            });
+        }
+
+        const exit_button = buy_window.appendChild(document.createElement("button"));
+        exit_button.classList.add("exit");
+        exit_button.textContent = "Close";
+        exit_button.addEventListener("click", async () => {
+            buy_window.remove();
+            finished.resolve();
+        });
+        on_keydown = (key)=>{
+            if (key == "Escape") {
+                buy_window.remove();
+                finished.resolve();
+            }
+        }
+    };
+
+    const on_sell = async () => {
+        const sell_window = document.body.appendChild(document.createElement("div"));
+        sell_window.classList.add("popup");
+        const funds_on_hand = sell_window.appendChild(document.createElement("p"))
+        funds_on_hand.textContent = `Funds available: ${ship.money}\u20A2`
+        funds_on_hand.classList.add("popup-window-funds")
+        for (const sell_item of ship.cargo) {
+            const item_button = sell_window.appendChild(document.createElement("button"))
+            item_button.textContent = `${sell_item.name} ${sell_item.serial_number} for ${sell_item.sell_price}\u20A2`
+            item_button.addEventListener("click", async () => {
+                item_button.remove()
+                sell(sell_item.id)
+                ship.money += sell_item.sell_price
+                funds_on_hand.textContent = `Funds available: ${ship.money}\u20A2`
+                print_newline_to_log()
+                print_to_log(`sold: ${sell_item.name} ${sell_item.serial_number}`)
+            });
+        }
+
+        const exit_button = sell_window.appendChild(document.createElement("button"));
+        exit_button.classList.add("exit");
+        exit_button.textContent = "Close";
+        exit_button.addEventListener("click", async () => {
+            sell_window.remove();
+            finished.resolve();
+        });
+        on_keydown = (key)=>{
+            if (key == "Escape") {
+                sell_window.remove();
+                finished.resolve();
+            }
+        }
+    }
+
+
+    const on_upgrade = async () => {
+        const upgrade_window = document.body.appendChild(document.createElement("div"));
+        upgrade_window.classList.add("popup");
+        const upgrade_row = upgrade_window.appendChild(document.createElement("div"));
+        upgrade_row.classList.add("row");
+        upgrade_row.classList.add("item-row");
+
+        const installable = upgrade_row.appendChild(document.createElement("div"));
+        installable.classList.add("column");
+        installable.classList.add("center");
+
+        function display_installable(item) {
+            const button = installable.appendChild(document.createElement("button"));
+            button.textContent = `Install ${item.name} ${item.serial_number}`
+            button.addEventListener("click", async () => {
+                await install(item.id);
+                button.remove()
+                display_installed(item);
+            });
+        }
+
+        function display_installed(item) {
+            const button = installed.appendChild(document.createElement("button"));
+            button.textContent = `Uninstall ${item.name} ${item.serial_number}`
+            button.addEventListener("click", async () => {
+                await uninstall(item.id);
+                button.remove()
+                display_installable(item);
+            });
+        }
+        
+        for (const item of ship.cargo) {
+            if (item.installable) {
+                display_installable(item);
+            }
+        }
+
+        const installed = upgrade_row.appendChild(document.createElement("div"));
+        installed.classList.add("column");
+        installed.classList.add("center");
+        for (const item of ship.installed_items) {
+            display_installed(item);
+        }
+        const exit_button = upgrade_window.appendChild(document.createElement("button"));
+        exit_button.classList.add("exit");
+        exit_button.textContent = "Close";
+        exit_button.addEventListener("click", async () => {
+            upgrade_window.remove();
+            finished.resolve();
+        });
+        on_keydown = (key)=>{
+            if (key == "Escape") {
+                upgrade_window.remove();
+                finished.resolve();
+            }
+        }
+    }
+
+    const direction_map = {
+        'q': 'X+', 'w': 'Y+', 'e': 'Z+',
+        'a': 'X-', 's': 'Y-', 'd': 'Z-'
+    };
+
     if (station != null){
         print_to_log("there is a station in this sector");
         print_station(station);
@@ -457,185 +691,42 @@ async function non_combat_loop(ship, station) {
         station_container.classList.add("station-container");
         const buy_button = station_container.appendChild(document.createElement("button"));
         buy_button.classList.add("buy");
-        buy_button.textContent = "Buy";
-        buy_button.addEventListener("click", async () => {
-            const buy_window = document.body.appendChild(document.createElement("div"));
-            buy_window.classList.add("popup");
-            const funds_on_hand = buy_window.appendChild(document.createElement("p"))
-            funds_on_hand.textContent = `Funds available: ${ship.money}`
-            const funds_icon = buy_window.appendChild(document.createElement("img"))
-            funds_icon.src = "/currency.png"
-            funds_icon.classList.add("funds-icon")
-
-            funds_on_hand.classList.add("popup-window-funds")
-
-            const hull_upgrade_button = buy_window.appendChild(document.createElement("button"))
-            hull_upgrade_button.textContent = `10 hull upgrade for 10\u20A2`
-            hull_upgrade_button.addEventListener("click", async () => {
-                if (ship.money < 10) {
-                    error("Insufficient Funds");
-                } else {
-                    upgrade_hull();
-                    ship.money -= 10
-                    funds_on_hand.textContent = `Funds available: ${ship.money}`
-                }
-            });
-
-            const hull_repair_button = buy_window.appendChild(document.createElement("button"))
-            hull_repair_button.textContent = `25 hull repair for 1\u20A2`
-            hull_repair_button.addEventListener("click", async () => {
-                if (ship.money < 1) {
-                    error("Insufficient Funds");
-                } else if (ship.hitpoints >= ship.max_hitpoints) {
-                    error("Hull not damaged")
-                } else {
-                    repair_hull();
-                    ship.money -= 1
-                    funds_on_hand.textContent = `Funds available: ${ship.money}`
-                    ship.hitpoints += 25;
-                }
-            });
-
-            const upgrade_cargo_button = buy_window.appendChild(document.createElement("button"))
-            upgrade_cargo_button.textContent = `1 additional cargo space for 5\u20A2`
-            upgrade_cargo_button.addEventListener("click", async () => {
-                if (ship.money < 5) {
-                    error("Insufficient Funds");
-                } else {
-                    upgrade_cargo();
-                    ship.money -= 5
-                    funds_on_hand.textContent = `Funds available: ${ship.money}`
-                }
-            });
-
-            const upgrade_slots_button = buy_window.appendChild(document.createElement("button"))
-            upgrade_slots_button.textContent = `1 additional install space for 25\u20A2`
-            upgrade_slots_button.addEventListener("click", async () => {
-                if (ship.money < 25) {
-                    error("Insufficient Funds");
-                } else {
-                    upgrade_install_space();
-                    ship.money -= 25
-                    funds_on_hand.textContent = `Funds available: ${ship.money}`
-                }
-            });
-
-
-            for (const buy_item of station.sale_goods) {
-                const item_button = buy_window.appendChild(document.createElement("button"))
-                item_button.textContent = `${buy_item.name} for ${buy_item.buy_price}\u20A2`
-                item_button.addEventListener("click", async () => {
-                    if (ship.money < buy_item.buy_price) {
-                        error("Insufficient Funds")
-                    } else if (ship.cargo.length >= ship.cargo_space) {
-                        error("Insufficient Cargo Space")
-                    } else {
-                        buy(buy_item.name)
-                        ship.money -= buy_item.buy_price
-                        funds_on_hand.textContent = `Funds available: ${ship.money}`
-                        ship.cargo.push(buy_item)
-                        print_newline_to_log()
-                        print_to_log(`bought: ${buy_item.name}`)
-                    }
-                });
-            }
-
-            const exit_button = buy_window.appendChild(document.createElement("button"));
-            exit_button.classList.add("exit");
-            exit_button.textContent = "Close";
-            exit_button.addEventListener("click", async () => {
-                buy_window.remove();
-                finished.resolve();
-            });
-        });
+        buy_button.textContent = "1. Buy";
+        buy_button.addEventListener("click", on_buy);
 
         const sell_button = station_container.appendChild(document.createElement("button"))
         sell_button.classList.add("sell")
-        sell_button.textContent = "Sell";
-        sell_button.addEventListener("click", async () => {
-            const sell_window = document.body.appendChild(document.createElement("div"));
-            sell_window.classList.add("popup");
-            const funds_on_hand = sell_window.appendChild(document.createElement("p"))
-            funds_on_hand.textContent = `Funds available: ${ship.money}\u20A2`
-            funds_on_hand.classList.add("popup-window-funds")
-            for (const sell_item of ship.cargo) {
-                const item_button = sell_window.appendChild(document.createElement("button"))
-                item_button.textContent = `${sell_item.name} ${sell_item.serial_number} for ${sell_item.sell_price}\u20A2`
-                item_button.addEventListener("click", async () => {
-                    item_button.remove()
-                    sell(sell_item.id)
-                    ship.money += sell_item.sell_price
-                    funds_on_hand.textContent = `Funds available: ${ship.money}\u20A2`
-                    print_newline_to_log()
-                    print_to_log(`sold: ${sell_item.name} ${sell_item.serial_number}`)
-                });
-            }
-
-            const exit_button = sell_window.appendChild(document.createElement("button"));
-            exit_button.classList.add("exit");
-            exit_button.textContent = "Close";
-            exit_button.addEventListener("click", async () => {
-                sell_window.remove();
-                finished.resolve();
-            });
-        });
+        sell_button.textContent = "2. Sell";
+        sell_button.addEventListener("click", on_sell);
 
         const upgrade_button = station_container.appendChild(document.createElement("button"))
         upgrade_button.classList.add("upgrade")
-        upgrade_button.textContent = "Upgrade";
-        upgrade_button.addEventListener("click", async () => {
-            const upgrade_window = document.body.appendChild(document.createElement("div"));
-            upgrade_window.classList.add("popup");
-            const upgrade_row = upgrade_window.appendChild(document.createElement("div"));
-            upgrade_row.classList.add("row");
-            upgrade_row.classList.add("item-row");
+        upgrade_button.textContent = "3. Upgrade";
+        upgrade_button.addEventListener("click", on_upgrade);
 
-            const installable = upgrade_row.appendChild(document.createElement("div"));
-            installable.classList.add("column");
-            installable.classList.add("center");
-
-            function display_installable(item) {
-                const button = installable.appendChild(document.createElement("button"));
-                button.textContent = `Install ${item.name} ${item.serial_number}`
-                button.addEventListener("click", async () => {
-                    await install(item.id);
-                    button.remove()
-                    display_installed(item);
-                });
+        on_keydown = async (key)=>{
+            if (key == "1") {
+                on_buy()
+            } 
+            else if (key == "2") {
+                on_sell()
             }
-
-            function display_installed(item) {
-                const button = installed.appendChild(document.createElement("button"));
-                button.textContent = `Uninstall ${item.name} ${item.serial_number}`
-                button.addEventListener("click", async () => {
-                    await uninstall(item.id);
-                    button.remove()
-                    display_installable(item);
-                });
+            else if (key == "3") {
+                on_upgrade()
+            } 
+            else if (key in direction_map){
+                await move_ship(direction_map[key])
+                finished.resolve()
             }
-            
-            for (const item of ship.cargo) {
-                if (item.installable) {
-                    display_installable(item);
-                }
+        };
+    } else {
+        on_keydown = async (key)=>{
+            if (key in direction_map) {
+                await move_ship(direction_map[key])
+                finished.resolve()
             }
-
-            const installed = upgrade_row.appendChild(document.createElement("div"));
-            installed.classList.add("column");
-            installed.classList.add("center");
-            for (const item of ship.installed_items) {
-                display_installed(item);
-            }
-            const exit_button = upgrade_window.appendChild(document.createElement("button"));
-            exit_button.classList.add("exit");
-            exit_button.textContent = "Close";
-            exit_button.addEventListener("click", async () => {
-                upgrade_window.remove();
-                finished.resolve();
-            });
-        });    
+        };
     }
-
     const move_container = inputs_element.appendChild(document.createElement("div"))
     move_container.classList.add("move-container")
     const move_con_top = move_container.appendChild(document.createElement("div"))
@@ -656,7 +747,6 @@ async function non_combat_loop(ship, station) {
             await move_ship(direction)
             finished.resolve();
         });
-
     }
 
     await finished;
@@ -725,7 +815,12 @@ async function main_loop(){
         print_ship(ship)
         print_to_log(`You have entered sector: X:${ship.coords.x}|Y:${ship.coords.y}|Z:${ship.coords.z}`)
         if (ship.enemies.length != 0){
-            print_to_log("You are in combat")
+            if (ship.enemies.length == 1) {
+                print_to_log(`There is a pirate in this sector!`)
+            } 
+            else {
+                print_to_log(`There are ${ship.enemies.length} pirates in this sector!`)
+            }
             await combat_loop(ship)
         }
         else {
