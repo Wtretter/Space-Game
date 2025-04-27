@@ -1,9 +1,7 @@
 import {Sleep} from "./Async.js";
 import {RandBetween} from "./utils.js";
 import {Vector2} from "./vector.js";
-import {gamespeed as gamespeed_setting} from "./config.js"
-
-let gamespeed = gamespeed_setting.value
+import {gamespeed} from "./config.js"
 
 
 export class Node{
@@ -232,7 +230,7 @@ export class Scene{
                     node.animate(0);
                     node.queued_for_anim = false;
                 } else {
-                    node.animate(delta * (gamespeed/10));
+                    node.animate(delta * (gamespeed.value/10));
                 }
             }
             this.draw()

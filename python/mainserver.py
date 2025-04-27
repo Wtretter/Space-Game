@@ -1,6 +1,6 @@
 from database import users, ships, goods
 from enum import Enum
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
@@ -136,7 +136,7 @@ def piracy_check(ship: Ship) -> bool:
     if ship.no_pirates:
         return False
     else:
-        return True
+        # return True
         return (
             (
                 ship.cargo_used
@@ -323,7 +323,6 @@ async def login(request: LoginRequest):
     if not security.verify_hash(request.password, document["hashed_password"]):
         raise AuthError("Incorrect username or password2")
     auth = AuthObject.create(username=request.username)
-    print(auth)
     return ("login successful", auth)
 
 @app.post("/ship/create")
@@ -522,9 +521,7 @@ async def handle_fight(request: CombatRequest):
                 log.append(LogEvent(type=EventType.ITEM_USED, contents=fight_item.item.id))
                 fight_item.use(ship, attackers, log)
                 fight_item.cooldown = fight_item.item.cooldown
-        print("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-        print(ship.enemies)
-        print(attackers)
+
         for attacker in list(attackers):
             if attacker.hitpoints <= 0:
                 attackers.remove(attacker)
@@ -552,6 +549,29 @@ async def handle_fight(request: CombatRequest):
         log.append(LogEvent(type=EventType.TIME_PASSED, contents=time_elapsed))       
     ship.save()
     return log
+
+active_users: set[tuple[str, WebSocket]] = set()
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        token = await websocket.receive_json()
+    except:
+        return
+    token = AuthObject(**token)
+    token.verify()
+    print(f"user: {token.username} connected")
+    user_socket = (token.username, websocket)
+    active_users.add(user_socket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            for username, user in active_users:
+                await user.send_text(f"{token.username}: {data}")
+    except:
+        active_users.remove(user_socket)
+        print(f"user: {token.username} disconnected")
 
 
 

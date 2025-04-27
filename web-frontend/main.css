@@ -8,7 +8,7 @@
     height: calc(100% - 234px);
 }
 
-.ship-info, .log {
+.ship-info, .log, .chat {
     margin: 8px; 
     border: 2px solid rgb(0, 150, 200);
     border-radius: 8px;
@@ -16,6 +16,11 @@
     flex: 1;
     overflow-y: auto;
 }
+
+.chat {
+    margin-bottom: 2px;
+}
+
 .ship-info {
     text-align: center;
     display: flex;
@@ -42,7 +47,7 @@
     flex-flow: row nowrap;
     justify-content: space-around; 
     margin: 8px; 
-    border: 2px solid rgb(0, 149, 199);
+    border: 2px solid rgb(0, 150, 200);
     border-radius: 8px;
     padding: 8px; 
     text-align: center;
@@ -270,4 +275,35 @@ canvas {
 .ship-info-paragraph.item-list-element {
     font-size: small;
     opacity: 90%;
+}
+
+h3.log-header {
+    margin-right: 12px;
+    cursor: pointer;
+}
+
+h3.chat-header {
+    cursor: pointer;
+}
+
+.inactive {
+    opacity: 50%;
+}
+
+.disabled {
+    display: none;
+}
+
+.chat-textarea {
+    background-color: rgb(100, 100, 100);
+    border: 2px solid rgb(0, 150, 200);
+    border-radius: 8px;
+    margin: 8px;
+    margin-top: 0;
+    color: rgb(182, 219, 231);;
+}
+
+.chat-textarea:focus {
+    outline: none;
+    border-color: rgb(182, 219, 231);
 }

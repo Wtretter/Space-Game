@@ -1,8 +1,9 @@
 // variables
-import { gamespeed } from "./config.js";
+import { gamespeed, init } from "./config.js";
 
 
 window.addEventListener("load", ()=> {
+    init()
     let settings_list = document.body.appendChild(document.createElement("div"));
     let gamespeed_element = settings_list.appendChild(document.createElement("p"));
     gamespeed_element.textContent = gamespeed.show();

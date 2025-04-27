@@ -4,15 +4,13 @@ import {Scene, ShipNode, LaserNode, DamageNode } from "./scene.js";
 import {RandBetween, RandChoice} from "./utils.js";
 import {base_url} from "./config.js";
 import {Vector2} from "./vector.js";
-import {gamespeed as gamespeed_setting} from "./config.js"
+import {gamespeed} from "./config.js"
+import { init } from "./config.js";
 
-let gamespeed = gamespeed_setting.value
+
 let token = null;
 let is_typing = false;
 let on_keydown = null;
-
-console.log("Game Speed", gamespeed);
-console.log("BASE URL", base_url);
 
 
 register_error_callback(string => {
@@ -21,7 +19,7 @@ register_error_callback(string => {
 });
 
 async function scaled_sleep(time_in_ms) {
-    await Sleep(time_in_ms * (10 / gamespeed));
+    await Sleep(time_in_ms * (10 / gamespeed.value));
 }
 
 async function get_ship(){
@@ -119,6 +117,11 @@ async function run_away(ship){
     
 }
 
+var ws = new WebSocket(`${base_url}/ws`);
+ws.onmessage = function(event) {
+    print_to_chat(event.data)
+};
+            
 
 async function send_request(endpoint, data) {
     const response = await fetch(base_url+endpoint, {
@@ -191,6 +194,13 @@ function print_to_log(str){
     log_element.scrollTo(0, log_element.scrollHeight)
 }
 
+function print_to_chat(str){
+    const chat_element = document.querySelector(".chat");
+    const message_element = chat_element.appendChild(document.createElement("p"));
+    message_element.textContent = `[${new Date().toLocaleTimeString()}] ${str}`;
+    chat_element.scrollTo(0, chat_element.scrollHeight)
+}
+
 
 function add_divider_to_log(){
     const log_element = document.querySelector(".log");
@@ -203,9 +213,16 @@ function coords_to_str(coords){
     return `${coords.x}, ${coords.y}, ${coords.z}`
 }
 
+window.addEventListener('pageshow', (ev) => {
+    if (ev.persisted) {
+        window.location.reload();
+    }
+});
 
 
 window.addEventListener("load", async ()=>{
+    init()
+    
     try {
         token = JSON.parse(localStorage.getItem("token"));
     } catch {
@@ -322,6 +339,51 @@ window.addEventListener("load", async ()=>{
             new_note_button.style.display = "none";
         }
     })
+    ws.send(JSON.stringify(token))
+
+    const log_header = document.querySelector(".log-header");
+    const chat_header = document.querySelector(".chat-header");
+    const log_box = document.querySelector(".log");
+    const chat_box = document.querySelector(".chat");
+    /** @type {HTMLTextAreaElement} */
+    const chat_area = document.querySelector(".chat-textarea");
+
+    log_header.addEventListener("click", () => {
+        log_box.classList.remove("disabled");
+        log_header.classList.remove("inactive");
+        chat_area.classList.add("disabled");
+        chat_box.classList.add("disabled");
+        chat_header.classList.add("inactive");
+        
+    })
+
+    chat_header.addEventListener("click", () => {
+        log_box.classList.add("disabled");
+        log_header.classList.add("inactive");
+        chat_area.classList.remove("disabled");
+        chat_box.classList.remove("disabled");
+        chat_header.classList.remove("inactive");
+    })
+
+    chat_area.addEventListener("focus", () => {
+        is_typing = true;
+    })
+
+    chat_area.addEventListener("blur", () => {
+        is_typing = false;
+    })
+
+    chat_area.addEventListener("keydown", (ev)=>{
+        if (ev.key == "Enter") {
+            ev.preventDefault();
+            if (chat_area.value != ""){
+                ws.send(chat_area.value);
+                chat_area.value = "";
+            }
+        }
+    })
+
+
     main_loop();
 });
 
@@ -435,7 +497,7 @@ async function display_combat(ship, enemies, log) {
             print_to_log(`${event.type} - ${event.contents}`);
         }
     }
-    await scaled_sleep(5000);
+    await scaled_sleep(4000);
     scene.stop();
 }
 

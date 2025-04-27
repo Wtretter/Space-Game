@@ -6,7 +6,10 @@ export class Setting {
     constructor(name, default_value) {
         this.name = name;
         this.default_value = default_value;
+        this._value = null;
+    }
 
+    load() {
         let value;
         try {
             value = JSON.parse(localStorage.getItem(this.name));
@@ -33,4 +36,9 @@ export class Setting {
     }
 }
 
-export const gamespeed = new Setting("gamespeed", 5);
+export let gamespeed = new Setting("gamespeed", 10);
+
+export function init() {
+    gamespeed.load();
+    console.log(gamespeed.value)
+}
