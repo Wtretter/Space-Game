@@ -557,10 +557,10 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     try:
         token = await websocket.receive_json()
+        token = AuthObject(**token)
+        token.verify()
     except:
         return
-    token = AuthObject(**token)
-    token.verify()
     print(f"user: {token.username} connected")
     user_socket = (token.username, websocket)
     active_users.add(user_socket)

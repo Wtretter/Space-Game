@@ -216,6 +216,15 @@ function coords_to_str(coords){
     return `${coords.x}, ${coords.y}, ${coords.z}`
 }
 
+function layout_check(){
+    if (window.innerWidth < 900) {
+        document.body.classList.add("vertical");
+    }
+    else {
+        document.body.classList.remove("vertical");
+    }
+}
+
 window.addEventListener('pageshow', (ev) => {
     if (ev.persisted) {
         window.location.reload();
@@ -358,13 +367,6 @@ window.addEventListener("load", async ()=>{
         chat_header.classList.add("inactive");
     })
 
-    // const logout_button = document.querySelector(".logout");
-    // logout_button.addEventListener("click", async () => {
-    //     localStorage.removeItem("token");
-    //     location.replace("/login.html");
-    // });
-
-
     chat_header.addEventListener("click", () => {
         log_box.classList.add("disabled");
         log_header.classList.add("inactive");
@@ -391,6 +393,10 @@ window.addEventListener("load", async ()=>{
         }
     })
 
+    layout_check()
+    window.addEventListener("resize", () => {
+        layout_check()
+    })
 
     main_loop();
 });
