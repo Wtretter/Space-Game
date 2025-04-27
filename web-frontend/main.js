@@ -119,8 +119,11 @@ async function run_away(ship){
 
 var ws = new WebSocket(`${base_url}/ws`);
 ws.onmessage = function(event) {
-    print_to_chat(event.data)
+    print_to_chat(event.data);
 };
+ws.onopen = () => {
+    ws.send(JSON.stringify(token));
+}
             
 
 async function send_request(endpoint, data) {
@@ -339,7 +342,6 @@ window.addEventListener("load", async ()=>{
             new_note_button.style.display = "none";
         }
     })
-    ws.send(JSON.stringify(token))
 
     const log_header = document.querySelector(".log-header");
     const chat_header = document.querySelector(".chat-header");
@@ -354,8 +356,14 @@ window.addEventListener("load", async ()=>{
         chat_area.classList.add("disabled");
         chat_box.classList.add("disabled");
         chat_header.classList.add("inactive");
-        
     })
+
+    // const logout_button = document.querySelector(".logout");
+    // logout_button.addEventListener("click", async () => {
+    //     localStorage.removeItem("token");
+    //     location.replace("/login.html");
+    // });
+
 
     chat_header.addEventListener("click", () => {
         log_box.classList.add("disabled");
