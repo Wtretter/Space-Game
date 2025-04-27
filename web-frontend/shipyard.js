@@ -1,6 +1,6 @@
-import {base_url} from "./settings.js";
+import {base_url} from "./config.js";
 import {fatal_error} from "./error.js";
-let token = null;
+let token = JSON.parse(localStorage.getItem("token"));
 
 
 async function create_ship(ship_name){
@@ -31,7 +31,6 @@ window.addEventListener("load", async ()=>{
         if (ship_name.length > 32) {
             fatal_error(`ship_name input too long, max length 32 char`);
         }
-        token = JSON.parse(localStorage.getItem("token"))
         await create_ship(ship_name)
 
 
