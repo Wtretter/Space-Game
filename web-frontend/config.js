@@ -1,7 +1,6 @@
 export const base_url = window.location.protocol+"//"+window.location.host+"/api";
 
 
-
 export class Setting {
     constructor(name, default_value) {
         this.name = name;
@@ -40,5 +39,4 @@ export let gamespeed = new Setting("gamespeed", 10);
 
 export function init() {
     gamespeed.load();
-    console.log(gamespeed.value)
 }

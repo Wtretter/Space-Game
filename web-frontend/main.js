@@ -5,7 +5,8 @@ import {RandBetween, RandChoice} from "./utils.js";
 import {base_url} from "./config.js";
 import {Vector2} from "./vector.js";
 import {gamespeed} from "./config.js"
-import { init } from "./config.js";
+import { init as config_init } from "./config.js";
+import { post_request, try_request, init as request_init } from "./request.js";
 
 
 let token = null;
@@ -23,36 +24,9 @@ async function scaled_sleep(time_in_ms) {
 }
 
 async function get_ship(){
-    try {
-        const response = await fetch(base_url+"/ship/get", {
-            "method": "POST",
-            "body": JSON.stringify({token: token}),
-            "headers": {"Content-Type": "application/json"}
-        });
-        if (response.status != 200){
-            return null
-        }
-        return await response.json();
-    } catch {
-        return null;
-    }
+    return await post_request("/ship/get");
 } 
 
-async function get_status(){
-    try {
-        const response = await fetch(base_url+"/status", {
-            "method": "POST",
-            "body": JSON.stringify({token: token}),
-            "headers": {"Content-Type": "application/json"}
-        });
-        if (response.status != 200){
-            return null
-        }
-        return await response.json();
-    } catch {
-        return null;
-    }
-} 
 
 async function move_ship(direction_input){
     let direction;
@@ -64,54 +38,33 @@ async function move_ship(direction_input){
     else {
         direction = "down"
     }
-    const response = await fetch(base_url+`/move/${axis}/${direction}`, {
-        "method": "POST",
-        "body": JSON.stringify({token: token}),
-        "headers": {"Content-Type": "application/json"}
-    });
-    return await response.json();
+    return await post_request(`/move/${axis}/${direction}`);
 }
 
 async function attack_ship(){
-    
-    const response = await fetch(base_url+`/piracy/fight`, {
-        "method": "POST",
-        "body": JSON.stringify({token: token}),
-        "headers": {"Content-Type": "application/json"}
-    });
+    return await post_request(`/piracy/fight`);
+
     return await response.json();
 }
 
 
 async function get_enemies(){
-    
-    const response = await fetch(base_url+`/piracy/get`, {
-        "method": "POST",
-        "body": JSON.stringify({token: token}),
-        "headers": {"Content-Type": "application/json"}
-    });
+    return await post_request(`/piracy/get`);
+
     return await response.json();
 }
 
 
 async function run_away(ship){
     if (ship.time_in_combat * ship.jump_cooldown_amount >= ship.cargo.length) {
-        const response = await fetch(base_url+`/piracy/run`, {
-            "method": "POST",
-            "body": JSON.stringify({token: token}),
-            "headers": {"Content-Type": "application/json"}
-        });
+        await post_request(`/piracy/run`);
         return true;
     }
     else {
         print_to_log("Your jumpdrive is not ready yet!")
         const drive_cooldown = Math.floor(ship.cargo.length / ship.jump_cooldown_amount) - ship.time_in_combat
         print_to_log(`Jumpdrive ready in ${drive_cooldown} turns`)
-        const response = await fetch(base_url+`/piracy/dodge`, {
-            "method": "POST",
-            "body": JSON.stringify({token: token}),
-            "headers": {"Content-Type": "application/json"}
-        });
+        await post_request(`/piracy/dodge`);
         return false;
     }
     
@@ -124,63 +77,49 @@ ws.onmessage = function(event) {
 ws.onopen = () => {
     ws.send(JSON.stringify(token));
 }
-            
-
-async function send_request(endpoint, data) {
-    const response = await fetch(base_url+endpoint, {
-        "method": "POST",
-        "body": JSON.stringify(data),
-        "headers": {"Content-Type": "application/json"}
-    });
-    if (response.status != 200) {
-        throw Error(`${response.status} ${response.statusText}: ${await response.text()}`);
-    }
-    return await response.json();
-}
-
 
 async function buy(name) {
-    return await send_request("/cargo/buy", {token: token, name: name});
+    return await try_request("/cargo/buy", {name: name});
 }
 
 async function upgrade_hull() {
-    return await send_request("/upgrade/hull", {token: token})
+    return await try_request("/upgrade/hull")
 }
 
 async function repair_hull() {
-    return await send_request("/repair/hull", {token: token})
+    return await try_request("/repair/hull")
 }
 
 async function upgrade_cargo() {
-    return await send_request("/upgrade/cargo", {token: token})
+    return await try_request("/upgrade/cargo")
 }
 
 async function upgrade_install_space() {
-    return await send_request("/upgrade/slots", {token: token})
+    return await try_request("/upgrade/slots")
 }
 
 async function sell(item_id) {
-    return await send_request("/cargo/sell", {token: token, item_id: item_id}); 
+    return await try_request("/cargo/sell", {item_id: item_id}); 
 }
 
 async function install(item_id) {
-    return await send_request("/cargo/install", {token: token, item_id: item_id});
+    return await try_request("/cargo/install", {item_id: item_id});
 }
 
 async function uninstall(item_id) {
-    return await send_request("/cargo/uninstall", {token: token, item_id: item_id});
+    return await try_request("/cargo/uninstall", {item_id: item_id});
 }
 
 async function get_notes() {
-    return await send_request("/notes/get", {token: token});
+    return await try_request("/notes/get");
 }
 
 async function push_note(title, contents, coords) {
-    return await send_request("/notes/push", {token: token, title, contents, coords});
+    return await try_request("/notes/push", {title, contents, coords});
 }
 
 async function push_note_remove(coords) {
-    return await send_request("/notes/remove", {token: token, coords});
+    return await try_request("/notes/remove", {coords});
 }
 
 function print_newline_to_log() {
@@ -233,18 +172,9 @@ window.addEventListener('pageshow', (ev) => {
 
 
 window.addEventListener("load", async ()=>{
-    init()
-    
-    try {
-        token = JSON.parse(localStorage.getItem("token"));
-    } catch {
-        location.replace("/login.html");
-        return;
-    }
-    if (!token || await get_status() != "success") {
-        location.replace("/login.html");
-        return;
-    }
+    config_init();
+    await request_init();
+
     if (!await get_ship()){
         location.replace("/shipyard.html");
         return;

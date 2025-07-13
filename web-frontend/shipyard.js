@@ -12,7 +12,6 @@ async function create_ship(ship_name){
             "headers": {"Content-Type": "application/json"}
         });
         if (response.status != 200){
-            console.log("AAAAAAAAAAAAAA");
             location.replace("/login.html");
             return null;
         }
@@ -24,6 +23,8 @@ async function create_ship(ship_name){
 
 
 window.addEventListener("load", async ()=>{
+    
+
     const create_button = document.querySelector(".create-ship");
     create_button.addEventListener("click", async () => {
         const ship_name = document.querySelector(".ship-name").value;
