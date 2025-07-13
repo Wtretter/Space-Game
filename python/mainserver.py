@@ -75,6 +75,7 @@ class AuthObject(BaseModel):
 class GameRequest(BaseModel):
     token: Annotated[AuthObject, AfterValidator(lambda token: token.verify())]
 
+
 class ShipRequest(GameRequest):
     ship: Ship = None
 
@@ -153,7 +154,39 @@ def load_item(item_name: str) -> InventoryItem:
     item.id = generate_id()
     return item
 
-def generate_pirate(ship: Ship) -> PirateShip:
+def generate_low_level_pirate() -> PirateShip:
+    pirate_hp = random.randint(20, 30)
+    attacker = PirateShip(hitpoints=pirate_hp, max_hitpoints=pirate_hp, bravery=random.randint(5,30), bribe=.05)
+    attacker.installed_items.append(load_item("Mining Laser"))
+    return attacker
+
+def generate_mid_level_pirate() -> PirateShip:
+    attacker = PirateShip(hitpoints=250, max_hitpoints=250, bravery=random.randint(25,500), bribe=.35)
+    attacker.installed_items.append(load_item("Military Laser"))
+    return attacker
+
+def generate_high_level_pirate() -> PirateShip:
+    attacker = PirateShip(hitpoints=400, max_hitpoints=400, bravery=random.randint(75,1000), bribe=.75)
+    attacker.installed_items.append(load_item("Military Laser"))
+    attacker.installed_items.append(load_item("Military Laser"))
+    attacker.installed_items.append(load_item("Military Laser"))
+    attacker.installed_items.append(load_item("Military Laser"))
+    return attacker
+
+def generate_boss_level_pirate() -> PirateShip:
+    attacker = PirateShip(hitpoints=2500, max_hitpoints=2500, bravery=10000, bribe=1)
+    attacker.installed_items.append(load_item("Military Laser"))
+    attacker.installed_items.append(load_item("Military Laser"))
+    attacker.installed_items.append(load_item("Military Laser"))
+    attacker.installed_items.append(load_item("Military Laser"))
+    attacker.installed_items.append(load_item("Military Laser"))
+    attacker.installed_items.append(load_item("Military Laser"))
+    attacker.installed_items.append(load_item("Military Laser"))
+    attacker.installed_items.append(load_item("Military Laser"))
+    return attacker
+
+
+def generate_pirate(ship: Ship) -> list[PirateShip]:
     ship_value = 0
     for item in ship.cargo:
         ship_value += item.buy_price
@@ -162,55 +195,71 @@ def generate_pirate(ship: Ship) -> PirateShip:
 
     attackers: list[PirateShip] = []
 
+    luck_roll = random.randint(0, 100)
+
     ship_danger = (ship_value + abs(ship.coords.x) + abs(ship.coords.y) + abs(ship.coords.z))
     if ship_danger <= 250:
-        # low level pirate
-        attacker = PirateShip(hitpoints=25, max_hitpoints=25, bravery=random.randint(5,30), bribe=.05)
-        attacker.installed_items.append(load_item("Mining Laser"))
-        attackers.append(attacker)
-        attacker = PirateShip(hitpoints=25, max_hitpoints=25, bravery=random.randint(5,30), bribe=.05)
-        attacker.installed_items.append(load_item("Mining Laser"))
-        attackers.append(attacker)
+        if luck_roll >= 60:
+            attackers.append(generate_low_level_pirate())
+        elif luck_roll > 0:
+            attackers.append(generate_low_level_pirate())
+            attackers.append(generate_low_level_pirate())
+        else:
+            attackers.append(generate_mid_level_pirate())
 
 
     elif ship_danger <= 1000:
-        # mid level pirate
-        attacker = PirateShip(hitpoints=250, max_hitpoints=250, bravery=random.randint(25,500), bribe=.35)
-        attacker.installed_items.append(load_item("Military Laser"))
-        attackers.append(attacker)
+        if luck_roll >= 60:
+            attackers.append(generate_mid_level_pirate())
+        elif luck_roll > 0:
+            attackers.append(generate_mid_level_pirate())
+            attackers.append(generate_low_level_pirate())
+        else:
+            attackers.append(generate_high_level_pirate())
+
         
     elif ship_danger <= 10000:
-        # high level pirate
-        attacker = PirateShip(hitpoints=400, max_hitpoints=400, bravery=random.randint(75,1000), bribe=.75)
-        attacker.installed_items.append(load_item("Military Laser"))
-        attacker.installed_items.append(load_item("Military Laser"))
-        attacker.installed_items.append(load_item("Military Laser"))
-        attacker.installed_items.append(load_item("Military Laser"))
-        attackers.append(attacker)
+        if luck_roll >= 60:
+            attackers.append(generate_mid_level_pirate())
+            attackers.append(generate_mid_level_pirate())
+
+        elif luck_roll > 0:
+            attackers.append(generate_mid_level_pirate())
+            attackers.append(generate_mid_level_pirate())
+            attackers.append(generate_mid_level_pirate())
+
+        else:
+            attackers.append(generate_high_level_pirate())
+            attackers.append(generate_low_level_pirate())
+            attackers.append(generate_low_level_pirate())
+
     else:
-        # max level pirate
-        attacker = PirateShip(hitpoints=2500, max_hitpoints=2500, bravery=10000, bribe=1)
-        attacker.installed_items.append(load_item("Military Laser"))
-        attacker.installed_items.append(load_item("Military Laser"))
-        attacker.installed_items.append(load_item("Military Laser"))
-        attacker.installed_items.append(load_item("Military Laser"))
-        attacker.installed_items.append(load_item("Military Laser"))
-        attacker.installed_items.append(load_item("Military Laser"))
-        attacker.installed_items.append(load_item("Military Laser"))
-        attacker.installed_items.append(load_item("Military Laser"))
-        attackers.append(attacker)
+        if luck_roll > 1:
+            attackers.append(generate_mid_level_pirate())
+            attackers.append(generate_low_level_pirate())
+        else:    
+            attackers.append(generate_boss_level_pirate())
+            attackers.append(generate_mid_level_pirate())
+            attackers.append(generate_mid_level_pirate())
+            attackers.append(generate_low_level_pirate())
+            attackers.append(generate_low_level_pirate())
+        
 
     for attacker in attackers:
         ship.enemies.append(attacker.id)
         attacker.save()
     return attackers
 
-def create_ship(shipname: str, username: str) -> Ship:
+def create_ship(basename: str, username: str) -> Ship:
     user = User.model_validate(users.find_one({"username": username}))
     laser_document = goods.find_one({"name": "Mining Laser"})
     starter_laser = InventoryItem.model_validate(laser_document)
     starter_laser.serial_number = generate_serial(starter_laser.name)
-    ship = Ship(name=shipname, owner=username, installed_items=[starter_laser])
+    if user.lost_ships == 0:
+        name = basename
+    else:
+        name = f"{basename} {romanize_number(user.lost_ships + 1)}"
+    ship = Ship(name=name, basename=basename, owner=username, installed_items=[starter_laser])
     ship.save()
     user.ship_id = ship.id
     user.save()
@@ -239,7 +288,7 @@ async def validation_exception_handler(request: Request, exception: ValidationEr
     )
 
 @app.post("/admin/nopirates")
-async def handle_reset(request: ShipRequest):
+async def pirates_off(request: ShipRequest):
     request.ship.no_pirates = True
     for attacker in [get_pirate(id) for id in request.ship.enemies]:
         attacker.delete()
@@ -247,7 +296,7 @@ async def handle_reset(request: ShipRequest):
     request.ship.save()
 
 @app.post("/admin/yespirates")
-async def handle_reset(request: ShipRequest):
+async def pirates_on(request: ShipRequest):
     request.ship.no_pirates = False
     request.ship.save()
 
@@ -274,7 +323,7 @@ async def get_notes(request: GameRequest):
     return user.notes
 
 @app.post("/notes/push")
-async def get_notes(request: NoteRequest):
+async def push_notes(request: NoteRequest):
     document = users.find_one({"username": request.token.username})
     if document == None:
         raise AuthError("invalid token")
@@ -296,7 +345,7 @@ async def get_notes(request: NoteRequest):
     return edited_note
 
 @app.post("/notes/remove")
-async def get_notes(request: NoteRemoveRequest):
+async def delete_note(request: NoteRemoveRequest):
     document = users.find_one({"username": request.token.username})
     if document == None:
         raise AuthError("invalid token")
@@ -411,7 +460,7 @@ async def cargo_uninstall(request: ItemRequest):
     return ship
 
 @app.post("/repair/hull")
-async def upgrade_hull(request: NonCombatRequest):
+async def repair_hull(request: NonCombatRequest):
     ship = request.ship
     if ship.money <= 0:
         raise ClientError("no money")
@@ -490,7 +539,7 @@ async def handle_bribe(request: CombatRequest):
     return ship
 
 @app.post("/piracy/run")
-async def handle_ship_move(request: CombatRequest):
+async def handle_piracy_run(request: CombatRequest):
     ship = get_ship(request.token.username)
     #  TODO: fix running away
     for attacker in [get_pirate(id) for id in ship.enemies]:
@@ -537,7 +586,7 @@ async def handle_fight(request: CombatRequest):
                 attacker.delete()
             ship.delete()
             users.update_one({"username": request.token.username}, {"$inc":{"lost_ships":1}})
-            ship = create_ship(ship.name, request.token.username)
+            ship = create_ship(ship.basename, request.token.username)
             break
 
         if not ship.enemies:
@@ -551,6 +600,41 @@ async def handle_fight(request: CombatRequest):
     return log
 
 active_users: set[tuple[str, WebSocket]] = set()
+
+def romanize_number(num: int) -> str:
+    result = ""
+    while num >= 1000:
+        num -= 1000
+        result += "M"
+    while num >= 500:
+        num -= 500
+        result += "D"
+    while num >= 100:
+        num -= 100
+        result += "C"
+    while num >= 50:
+        num -= 50
+        result += "L"
+    while num >= 10:
+        num -= 10
+        result += "X"
+    if num == 9:
+        result += "IX"
+    elif num == 8:
+        result += "VIII"
+    elif num == 7:
+        result += "VII"
+    elif num == 6:
+        result += "VI"
+    elif num == 5:
+        result += "V"
+    elif num == 4:
+        result += "IV"
+    else:
+        result += "I"*num
+
+    return result
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

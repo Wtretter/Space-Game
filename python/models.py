@@ -155,6 +155,7 @@ class Station(BaseModel):
     sale_goods: list[InventoryItem]
 
 class Ship(DatabaseEntry):
+    basename: str = ""
     name: str = Field(default_factory=generate_ship_name)
     owner: Optional[str] = None
     hitpoints: float = 100.0

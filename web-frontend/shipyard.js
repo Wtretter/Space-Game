@@ -12,7 +12,9 @@ async function create_ship(ship_name){
             "headers": {"Content-Type": "application/json"}
         });
         if (response.status != 200){
-            return null
+            console.log("AAAAAAAAAAAAAA");
+            location.replace("/login.html");
+            return null;
         }
         return await response.json();
     } catch {

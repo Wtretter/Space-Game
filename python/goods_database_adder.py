@@ -33,4 +33,4 @@ while True:
         with open("../goods.json", "w") as newfile:
             json.dump(trade_goods_as_dict, newfile, indent=2)
     else:
-        break 
+        break

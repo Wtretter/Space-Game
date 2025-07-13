@@ -1,13 +1,6 @@
 # Dependencies
-- python3
-    - pymongo
-    - fastapi
-    - texttable
-    - cryptography
 - docker
 
 # Getting started
-- run startmongo.sh
-- run mainserver.py
-- run `python3 client.py register`
-    - after initial registration run `python3 client.py login`
+- run `docker compose up`
+- visit http://localhost:8080 to play
