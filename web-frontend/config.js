@@ -1,6 +1,3 @@
-export const base_url = window.location.protocol+"//"+window.location.host+"/api";
-
-
 export class Setting {
     constructor(name, default_value) {
         this.name = name;
@@ -31,12 +28,14 @@ export class Setting {
     }
 
     show() {
-        return `${this.name}: ${this.value} (default: ${this.default_value})`;
+        return `${this.name}: (default: ${this.default_value})`;
     }
 }
 
-export let gamespeed = new Setting("gamespeed", 10);
+export let animation_speed = new Setting("Animation Speed", 10);
+export let pirates_on = new Setting("Pirates", "ON");
 
 export function init() {
-    gamespeed.load();
+    animation_speed.load();
+    pirates_on.load();
 }

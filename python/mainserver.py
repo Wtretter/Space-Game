@@ -138,7 +138,7 @@ def piracy_check(ship: Ship) -> bool:
         return False
     else:
         # return True
-        return (
+        return random.randint(0,1) and (
             (
                 ship.cargo_used
                 + abs(ship.coords["x"])
@@ -223,7 +223,7 @@ def generate_pirate(ship: Ship) -> list[PirateShip]:
             attackers.append(generate_mid_level_pirate())
             attackers.append(generate_mid_level_pirate())
 
-        elif luck_roll > 0:
+        elif luck_roll > 10:
             attackers.append(generate_mid_level_pirate())
             attackers.append(generate_mid_level_pirate())
             attackers.append(generate_mid_level_pirate())
@@ -234,7 +234,7 @@ def generate_pirate(ship: Ship) -> list[PirateShip]:
             attackers.append(generate_low_level_pirate())
 
     else:
-        if luck_roll > 1:
+        if luck_roll > 10:
             attackers.append(generate_mid_level_pirate())
             attackers.append(generate_low_level_pirate())
         else:    

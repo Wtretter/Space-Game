@@ -2,9 +2,9 @@ import {Future, Sleep} from "./Async.js";
 import {error, register_error_callback} from "./error.js";
 import {Scene, ShipNode, LaserNode, DamageNode } from "./scene.js";
 import {RandBetween, RandChoice} from "./utils.js";
-import {base_url} from "./config.js";
+import {base_url} from "./request.js";
 import {Vector2} from "./vector.js";
-import {gamespeed} from "./config.js"
+import {animation_speed} from "./config.js"
 import { init as config_init } from "./config.js";
 import { post_request, try_request, init as request_init } from "./request.js";
 
@@ -20,7 +20,7 @@ register_error_callback(string => {
 });
 
 async function scaled_sleep(time_in_ms) {
-    await Sleep(time_in_ms * (10 / gamespeed.value));
+    await Sleep(time_in_ms * (10 / animation_speed.value));
 }
 
 async function get_ship(){
@@ -43,15 +43,11 @@ async function move_ship(direction_input){
 
 async function attack_ship(){
     return await post_request(`/piracy/fight`);
-
-    return await response.json();
 }
 
 
 async function get_enemies(){
     return await post_request(`/piracy/get`);
-
-    return await response.json();
 }
 
 
@@ -642,9 +638,13 @@ async function non_combat_loop(ship, station) {
             const button = installable.appendChild(document.createElement("button"));
             button.textContent = `Install ${item.name} ${item.serial_number}`
             button.addEventListener("click", async () => {
-                await install(item.id);
-                button.remove()
-                display_installed(item);
+                try{
+                    await install(item.id);
+                    button.remove();
+                    display_installed(item);
+                } catch {
+                    error("No Install Space")
+                }
             });
         }
 
@@ -652,9 +652,13 @@ async function non_combat_loop(ship, station) {
             const button = installed.appendChild(document.createElement("button"));
             button.textContent = `Uninstall ${item.name} ${item.serial_number}`
             button.addEventListener("click", async () => {
-                await uninstall(item.id);
-                button.remove()
-                display_installable(item);
+                try {
+                    await uninstall(item.id);
+                    button.remove()
+                    display_installable(item);
+                } catch {
+                    error("No Cargo Space")
+                }
             });
         }
         

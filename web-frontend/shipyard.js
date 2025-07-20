@@ -1,42 +1,37 @@
-import {base_url} from "./config.js";
 import {fatal_error} from "./error.js";
-let token = JSON.parse(localStorage.getItem("token"));
+import {try_request, init as request_init} from "./request.js";
 
 
 async function create_ship(ship_name){
-    try {
-        console.log(token)
-        const response = await fetch(base_url+"/ship/create", {
-            "method": "POST",
-            "body": JSON.stringify({ship_name: ship_name, token: token}),
-            "headers": {"Content-Type": "application/json"}
-        });
-        if (response.status != 200){
-            location.replace("/login.html");
-            return null;
-        }
-        return await response.json();
-    } catch {
-        return null;
-    }
+    return await try_request("/ship/create", {ship_name: ship_name});
 } 
 
 
 window.addEventListener("load", async ()=>{
-    
+    request_init();
 
-    const create_button = document.querySelector(".create-ship");
-    create_button.addEventListener("click", async () => {
+    const create_ship_button = document.querySelector(".create-ship");
+    const ship_name_field = document.querySelector(".ship-name");
+    ship_name_field.addEventListener("keypress", (ev) => {
+        if (ev.key == "Enter") {
+            create_ship_button.click();
+        }
+    })
+    create_ship_button.addEventListener("click", async () => {
         const ship_name = document.querySelector(".ship-name").value;
         if (ship_name == "") {
-            fatal_error(`"Ship Name" may not be empty`);
+            fatal_error(`Ship Name may not be empty`);
         }
         if (ship_name.length > 32) {
-            fatal_error(`ship_name input too long, max length 32 char`);
+            fatal_error(`Ship Name too long, max length 32`);
         }
-        await create_ship(ship_name)
 
-
-        location.replace("/");
+        try {
+            await create_ship(ship_name);
+            location.replace("/");
+        } catch (e) {
+            console.log(e);
+            //location.replace("/login.html");
+        }
     });
 });

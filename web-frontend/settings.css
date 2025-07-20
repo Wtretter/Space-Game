@@ -1,0 +1,43 @@
+body {
+    display: flex;
+    flex-flow: column nowrap;
+    align-items: center;
+    padding-top: 20px;
+}
+
+.setting {
+    display: flex;
+    flex-flow: row nowrap;
+    margin: 20px;
+    align-items: center;
+}
+
+.label {
+    margin-right: 20px;
+}
+
+select, button, input {
+    background-color: rgb(17, 81, 170);
+    border-color: rgb(17, 81, 170);
+    border-radius: 8px;
+    color: rgb(255, 255, 255);
+}
+
+button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size:x-large;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
+.arrow-button-container {
+    display: flex;
+    flex-flow: row nowrap;
+}
+
+input {
+    width: 60px;
+    text-align: center;
+}

@@ -1,5 +1,5 @@
 import { fatal_error } from "./error.js";
-import {base_url} from "./config.js";
+import {base_url} from "./request.js";
 
 
 async function login(username, password) {
