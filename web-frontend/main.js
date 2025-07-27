@@ -4,7 +4,7 @@ import {Scene, ShipNode, LaserNode, DamageNode } from "./scene.js";
 import {RandBetween, RandChoice} from "./utils.js";
 import {base_url} from "./request.js";
 import {Vector2} from "./vector.js";
-import {animation_speed} from "./config.js"
+import {settings} from "./config.js"
 import { init as config_init } from "./config.js";
 import { post_request, try_request, init as request_init } from "./request.js";
 
@@ -20,7 +20,7 @@ register_error_callback(string => {
 });
 
 async function scaled_sleep(time_in_ms) {
-    await Sleep(time_in_ms * (10 / animation_speed.value));
+    await Sleep(time_in_ms * (10 / settings.animation_speed));
 }
 
 async function get_ship(){
@@ -168,8 +168,8 @@ window.addEventListener('pageshow', (ev) => {
 
 
 window.addEventListener("load", async ()=>{
-    config_init();
     await request_init();
+    await config_init();
 
     if (!await get_ship()){
         location.replace("/shipyard.html");
@@ -191,6 +191,11 @@ window.addEventListener("load", async ()=>{
     const settings_button = document.querySelector(".settings");
     settings_button.addEventListener("click", async () => {
        location.assign("/settings.html");
+    });
+
+    const tech_tree_button = document.querySelector(".tech-tree");
+    tech_tree_button.addEventListener("click", async () => {
+       location.assign("/perks.html");
     });
 
     const logout_button = document.querySelector(".logout");
@@ -765,35 +770,51 @@ async function non_combat_loop(ship, station) {
 function print_ship(ship) {
 
     const ship_info = document.querySelector(".ship-info");
-    ship_info.innerHTML = ""
+    ship_info.innerHTML = "";
     const name_element = ship_info.appendChild(document.createElement("p"));
-    name_element.classList.add("ship-info-paragraph")
+    name_element.classList.add("ship-info-paragraph");
     name_element.textContent = "Ship name: " + ship.name;
 
     const coords_element = ship_info.appendChild(document.createElement("p"));
-    coords_element.classList.add("ship-info-paragraph")
+    coords_element.classList.add("ship-info-paragraph");
     coords_element.textContent = `Coords: X:${ship.coords.x} | Y:${ship.coords.y} | Z:${ship.coords.z}`
 
     const hp_element = ship_info.appendChild(document.createElement("p"));
-    hp_element.classList.add("ship-info-paragraph")
+    hp_element.classList.add("ship-info-paragraph");
     hp_element.textContent = `Hull: ${+ship.hitpoints.toFixed(2)}/${ship.max_hitpoints}`;
 
+    const dodge_element = ship_info.appendChild(document.createElement("p"));
+    dodge_element.classList.add("ship-info-paragraph");
+
+    let hit_chance = 1;
+    for (let item of ship.installed_items){
+        hit_chance *= 1 - item.dodge_chance;
+    }
+    const dodge_chance = ((1 - hit_chance) * 100).toFixed(2);
+    dodge_element.textContent = `Dodge Chance: ${dodge_chance}%`
+
+
     const money_element = ship_info.appendChild(document.createElement("p"));
-    money_element.classList.add("ship-info-paragraph")
+    money_element.classList.add("ship-info-paragraph");
     money_element.textContent = `Funds: ${ship.money}`;
-    const funds_icon = money_element.appendChild(document.createElement("img"))
-    funds_icon.src = "/currency.png"
-    funds_icon.classList.add("funds-icon")
+    const funds_icon = money_element.appendChild(document.createElement("img"));
+    funds_icon.src = "/currency.png";
+    funds_icon.classList.add("funds-icon");
 
     const installed_items_label = ship_info.appendChild(document.createElement("p"));
-    installed_items_label.classList.add("ship-info-paragraph")
+    installed_items_label.classList.add("ship-info-paragraph");
     installed_items_label.textContent = "Installed Items: " + ship.installed_items.length + "/" + ship.install_space;
     const installed_element_div = ship_info.appendChild(document.createElement("div"));
     for (const installed_item of ship.installed_items) {
-        const installed_element = installed_element_div.appendChild(document.createElement("p"));
-        installed_element.classList.add("ship-info-paragraph");
+        const installed_element = installed_element_div.appendChild(document.createElement("div"));
         installed_element.classList.add("item-list-element");
-        installed_element.textContent = `- ${installed_item.name} ${installed_item.serial_number}`;
+        installed_element.textContent = `${installed_item.name} ${installed_item.serial_number}`;
+        const info_text = installed_element.appendChild(document.createElement("p"));
+        info_text.innerHTML = get_item_stats(installed_item);
+        info_text.classList.add("disabled");
+        installed_element.addEventListener("click", () => {
+            info_text.classList.toggle("disabled");
+        })
     }
 
     const cargo_label = ship_info.appendChild(document.createElement("p"));
@@ -801,13 +822,39 @@ function print_ship(ship) {
     cargo_label.textContent = "Cargo: " + ship.cargo.length + "/" + ship.cargo_space;
     const cargo_list_element = ship_info.appendChild(document.createElement("div"));
     for (const trade_good of ship.cargo) {
-        const cargo_element = cargo_list_element.appendChild(document.createElement("p"));
-        cargo_element.classList.add("ship-info-paragraph")
+        const cargo_element = cargo_list_element.appendChild(document.createElement("div"));
         cargo_element.classList.add("item-list-element");
-        cargo_element.textContent = `- ${trade_good.name} ${trade_good.serial_number}`;
+        cargo_element.textContent = `${trade_good.name} ${trade_good.serial_number}`;
+        const info_text = cargo_element.appendChild(document.createElement("p"));
+        info_text.innerHTML = get_item_stats(trade_good);
+        console.log(trade_good);
+        info_text.classList.add("disabled");
+        cargo_element.addEventListener("click", () => {
+            info_text.classList.toggle("disabled");
+        })
     }
 }
-  
+
+function get_item_stats(item) {
+    let item_str = "";
+    item_str += `Rarity: ${item.rarity}<br>`
+    item_str += `Sell Value: ${item.sell_price}<br>`
+    if (item.is_weapon) {
+        item_str += `Damage Type: ${item.damage_type}<br>`;
+        item_str += `Damage: ${item.damage}<br>`;
+        item_str += `Accuracy: ${item.accuracy * 100}%<br>`;
+        item_str += `Energy Consumption: ${item.energy_cost}<br>`;
+        if (!item.ammo_type){
+            item_str += `Ammo: None<br>`;
+        } else {
+            item_str += `Ammo: ${item.ammo_cost} ${item.ammo_type}<br>`;
+        }
+    }
+    else if (item.installable) {
+        item_str += `Dodge Chance: ${item.dodge_chance * 100}%<br>`;
+    }
+    return item_str;
+}
 
 function print_station(station) {
     print_to_log(`Station name: ${station.name}`)

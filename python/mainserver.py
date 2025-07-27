@@ -74,28 +74,40 @@ class AuthObject(BaseModel):
 
 class GameRequest(BaseModel):
     token: Annotated[AuthObject, AfterValidator(lambda token: token.verify())]
-
-
-class ShipRequest(GameRequest):
-    ship: Ship = None
+    user: Optional[User] = None        
 
     def on_validate(self):
-        pass
+        self.user = get_user(self.token.username)
 
     @model_validator(mode="wrap")
-    def combat_validator(self, handler):
-        request: ShipRequest = handler(self)
-        request.ship = get_ship(request.token.username)
+    def game_request_validator(self, handler):
+        request: GameRequest = handler(self)
         request.on_validate()
         return request
 
+
+class SettingsRequest(GameRequest):
+    settings: Settings
+
+
+class ShipRequest(GameRequest):
+    ship: Optional[Ship] = None
+
+    def on_validate(self):
+        super().on_validate()
+        self.ship = get_ship(self.token.username)
+        if self.ship is None:
+            raise ClientError("You don't have a ship")
+
 class CombatRequest(ShipRequest):
     def on_validate(self):
+        super().on_validate()
         if not self.ship.in_combat:
             raise ClientError("You are not in combat")
 
 class NonCombatRequest(ShipRequest):
     def on_validate(self):
+        super().on_validate()
         if self.ship.in_combat:
             raise ClientError("You are in combat")
         
@@ -116,16 +128,25 @@ class BuyRequest(NonCombatRequest):
 class CreateShipRequest(GameRequest):
     ship_name: str
 
-class PiracyBribeRequest(ShipRequest):
-    bribe: int
+class AdminRequest(GameRequest):
+    def on_validate(self):
+        super().on_validate()
+        if not self.user.admin:
+            raise AuthError("Insufficient Privileges")
 
-class PiracyDodgeRequest(ShipRequest):
-    attacker_firepower: int
+class AdminShipRequest(ShipRequest):
+    def on_validate(self):
+        super().on_validate()
+        if not self.user.admin:
+            raise AuthError("Insufficient Privileges")
 
-class PiracyFightRequest(ShipRequest):
-    attacker_firepower: int
-    self_firepower: int
 
+def get_user(username: str) -> User:
+    document = users.find_one({"username": username})
+    if document == None:
+        raise AuthError("invalid token")
+    user = User.model_validate(document)
+    return user
 
 def get_ship(data: str) -> Ship:
     return Ship.model_validate(ships.find_one({"$or": [{"owner": data}, {"id": data}]}))
@@ -134,10 +155,12 @@ def get_pirate(data: str) -> PirateShip:
     return PirateShip.model_validate(ships.find_one({"id": data}))
 
 def piracy_check(ship: Ship) -> bool:
-    if ship.no_pirates:
+    user = get_user(ship.owner)
+    if user.settings.piracy == PiracyStatus.OFF:
         return False
+    elif user.settings.piracy == PiracyStatus.ALWAYS:
+        return True
     else:
-        # return True
         return random.randint(0,1) and (
             (
                 ship.cargo_used
@@ -251,7 +274,7 @@ def generate_pirate(ship: Ship) -> list[PirateShip]:
     return attackers
 
 def create_ship(basename: str, username: str) -> Ship:
-    user = User.model_validate(users.find_one({"username": username}))
+    user = get_user(username)
     laser_document = goods.find_one({"name": "Mining Laser"})
     starter_laser = InventoryItem.model_validate(laser_document)
     starter_laser.serial_number = generate_serial(starter_laser.name)
@@ -287,21 +310,19 @@ async def validation_exception_handler(request: Request, exception: ValidationEr
         content={"message": str(exception)},
     )
 
-@app.post("/admin/nopirates")
-async def pirates_off(request: ShipRequest):
-    request.ship.no_pirates = True
-    for attacker in [get_pirate(id) for id in request.ship.enemies]:
-        attacker.delete()
-        request.ship.enemies.remove(attacker.id)
-    request.ship.save()
-
-@app.post("/admin/yespirates")
-async def pirates_on(request: ShipRequest):
-    request.ship.no_pirates = False
-    request.ship.save()
+@app.post("/settings/update")
+async def update_settings(request: SettingsRequest):
+    if not request.user.admin:
+        request.settings.piracy = PiracyStatus.ON
+    request.user.settings = request.settings
+    request.user.save()
+    
+@app.post("/settings/get")
+async def get_settings(request: GameRequest):
+    return request.user.settings
 
 @app.post("/admin/reset")
-async def handle_reset(request: ShipRequest):
+async def handle_reset(request: AdminShipRequest):
     request.ship.coords.x = 0
     request.ship.coords.y = 0
     request.ship.coords.z = 0
@@ -310,25 +331,22 @@ async def handle_reset(request: ShipRequest):
         request.ship.enemies.remove(attacker.id)
     request.ship.save()
 
+@app.post("/admin/money/{amount}")
+async def handle_admin_funds(request: AdminShipRequest, amount: int):
+    request.ship.money = amount
+    request.ship.save()
+
 @app.post("/status")
 async def get_status(request: GameRequest):
     return "success"
 
 @app.post("/notes/get")
 async def get_notes(request: GameRequest):
-    document = users.find_one({"username": request.token.username})
-    if document == None:
-        raise AuthError("invalid token")
-    user = User.model_validate(document)
-    return user.notes
+    return request.user.notes
 
 @app.post("/notes/push")
 async def push_notes(request: NoteRequest):
-    document = users.find_one({"username": request.token.username})
-    if document == None:
-        raise AuthError("invalid token")
-    user = User.model_validate(document)
-    notes = user.notes
+    notes = request.user.notes
     edited_note = None
     for note in notes:
         if request.coords == note.coords:
@@ -336,25 +354,21 @@ async def push_notes(request: NoteRequest):
             break
     if edited_note == None:
         edited_note = Note(title=request.title, contents=request.contents, original_timestamp=datetime.now(), edited_timestamp=datetime.now(), coords=request.coords)
-        user.notes.append(edited_note)
+        request.user.notes.append(edited_note)
     else:
         edited_note.title = request.title
         edited_note.contents = request.contents
         edited_note.edited_timestamp = datetime.now()
-    user.save()
+    request.user.save()
     return edited_note
 
 @app.post("/notes/remove")
 async def delete_note(request: NoteRemoveRequest):
-    document = users.find_one({"username": request.token.username})
-    if document == None:
-        raise AuthError("invalid token")
-    user = User.model_validate(document)
-    notes = user.notes
+    notes = request.user.notes
     for note in notes:
         if request.coords == note.coords:
-            user.notes.remove(note)
-            user.save()
+            request.user.notes.remove(note)
+            request.user.save()
 
 @app.post("/register")
 async def register(request: RegistrationRequest):
@@ -374,6 +388,10 @@ async def login(request: LoginRequest):
     auth = AuthObject.create(username=request.username)
     return ("login successful", auth)
 
+@app.post("/user/get")
+async def handle_get_user(request: GameRequest):
+    return request.user
+
 @app.post("/ship/create")
 async def handle_create_ship(request: CreateShipRequest):
     if len(request.ship_name) > 32:
@@ -382,8 +400,7 @@ async def handle_create_ship(request: CreateShipRequest):
 
 @app.post("/ship/get")
 async def handle_ship_get(request: ShipRequest):
-    ship = get_ship(request.token.username)
-    return ship, ship.station
+    return request.ship, request.ship.station
 
 @app.post("/cargo/buy")
 async def cargo_buy(request: BuyRequest):
@@ -564,7 +581,7 @@ async def handle_fight(request: CombatRequest):
     for item in ship.installed_items:
         if item.is_weapon:
             fight_items.append(FightItem(ship=ship, item=item))
-    while True:
+    for i in range(20000):
         for fight_item in fight_items:
             if fight_item.cooldown == 0.0:
                 log.append(LogEvent(type=EventType.ITEM_USED, contents=fight_item.item.id))
@@ -579,6 +596,9 @@ async def handle_fight(request: CombatRequest):
                 fight_items = [fight_item for fight_item in fight_items if fight_item.ship != attacker]
                 ship.money += round(attacker.bribe * attacker.bribe * random.randint(500,1000))
                 attacker.delete()
+
+        if i == 9999:
+            ship.hitpoints = 0
 
         if ship.hitpoints <= 0:
             log.append(LogEvent(type=EventType.SHIP_DESTROYED, contents=ship.id))

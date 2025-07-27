@@ -143,8 +143,10 @@ class FightItem(BaseModel):
                 target = random.choice(attackers)
             else:
                 target = ship
-            accuracy = random.random() + self.item.accuracy
-            if accuracy > target.dodge_chance:
+            dodge_chance = target.dodge_chance
+            hit_chance = (1 - dodge_chance) * self.item.accuracy
+            accuracy = random.random()
+            if accuracy < hit_chance:
                 attack_damage = (self.item.damage * (random.randint(75,125) / 100))
                 target.hitpoints -= attack_damage
                 log.append(LogEvent(type=EventType.DAMAGE_TAKEN, contents=(self.ship.id, target.id, attack_damage, self.item.damage_type)))
@@ -169,7 +171,6 @@ class Ship(DatabaseEntry):
 
     cargo: list[InventoryItem] = Field(default_factory=list)
     installed_items: list[InventoryItem] = Field(default_factory=list)
-    no_pirates: bool = False
     energy: int = 10
 
     @property
@@ -196,7 +197,11 @@ class Ship(DatabaseEntry):
     
     @property
     def dodge_chance(self) -> float:
-        return sum(item.dodge_chance for item in self.installed_items)
+        hit_chance = 1
+        for item in self.installed_items:
+            hit_chance *= 1 - item.dodge_chance
+        dodge_chance = 1 - hit_chance
+        return dodge_chance
 
     def save(self):
         ships.update_one({"_id": self._id}, {"$set": self.model_dump()}, upsert=True)
@@ -211,13 +216,25 @@ class Note(BaseModel):
     original_timestamp: Timestamp
     edited_timestamp: Optional[Timestamp] = None
 
+class PiracyStatus(str, Enum):
+    ON = "ON"
+    OFF = "OFF"
+    ALWAYS = "ALWAYS"
+
+class Settings(BaseModel):
+    animation_speed: int = 10
+    piracy: PiracyStatus = PiracyStatus.ON
+
 
 class User(DatabaseEntry):
     username: str
     hashed_password: str
+    xp: int = 0
     ship_id: Optional[str] = None
     lost_ships: int = 0
     notes: list[Note] = Field(default_factory=list)
+    settings: Settings = Field(default_factory=Settings)
+    admin: bool = False
 
     def save(self):
         users.update_one({"_id": self._id}, {"$set": self.model_dump()}, upsert=True)

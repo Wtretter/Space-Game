@@ -1,41 +1,27 @@
-export class Setting {
-    constructor(name, default_value) {
-        this.name = name;
-        this.default_value = default_value;
-        this._value = null;
+import { post_request } from "./request.js";
+
+export class Settings {
+    constructor() {
+        this.animation_speed = 10;
+        this.piracy = "ON";
     }
 
-    load() {
-        let value;
-        try {
-            value = JSON.parse(localStorage.getItem(this.name));
-            if (value == null) {
-                throw Error();
-            }
-        } catch {
-            value = this.default_value;
-        }
-        this._value = value;
+    async load() {
+        const settings = await post_request("/settings/get")
+        this.animation_speed = settings.animation_speed;
+        this.piracy = settings.piracy;
     }
 
-    get value() {
-        return this._value;
-    }
-
-    set value(obj) {
-        this._value = obj;
-        localStorage.setItem(this.name, JSON.stringify(obj));
-    }
-
-    show() {
-        return `${this.name}: (default: ${this.default_value})`;
+    async save() {
+        await post_request("/settings/update", {settings: {
+            animation_speed: this.animation_speed, 
+            piracy: this.piracy,
+        }})
     }
 }
 
-export let animation_speed = new Setting("Animation Speed", 10);
-export let pirates_on = new Setting("Pirates", "ON");
+export let settings = new Settings();
 
-export function init() {
-    animation_speed.load();
-    pirates_on.load();
+export async function init() {
+    await settings.load();
 }
