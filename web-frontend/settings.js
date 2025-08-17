@@ -90,6 +90,6 @@ window.addEventListener("load", async () => {
     save_button.textContent = "Save Settings";
     save_button.addEventListener("click", async () => {
         await settings.save();
-        location.replace("/");
+        location.replace("/main.html");
     }); 
 })

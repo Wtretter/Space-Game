@@ -28,7 +28,7 @@ window.addEventListener("load", async ()=>{
 
         try {
             await create_ship(ship_name);
-            location.replace("/");
+            location.replace("/main.html");
         } catch (e) {
             console.log(e);
             //location.replace("/login.html");

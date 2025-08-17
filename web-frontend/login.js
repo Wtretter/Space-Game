@@ -45,7 +45,7 @@ window.addEventListener("load", async ()=>{
 
         if (token != null) {
             localStorage.setItem("token", JSON.stringify(token))
-            location.replace("/");
+            location.replace("/main.html")
         } else {
             console.log("error 401 unauth");
             throw Error(`test error 1`);
