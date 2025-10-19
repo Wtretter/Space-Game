@@ -8,5 +8,7 @@ jobs:
     update:
         runs-on: self-hosted
         steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
             - name: run-updater
-              run: /home/ec2-user/update.sh
+              run: ./server-update.sh
