@@ -9,4 +9,4 @@ jobs:
         runs-on: self-hosted
         steps:
             - name: run-updater
-              run: update.sh
+              run: /home/ec2-user/update.sh
