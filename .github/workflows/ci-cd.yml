@@ -1,0 +1,12 @@
+name: SpaceGame-Auto-Updater
+
+on:
+    push:
+        branches: [ main ]
+
+jobs:
+    update:
+        runs-on: self-hosted
+        steps:
+            - name: run-updater
+              run: update.sh
