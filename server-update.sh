@@ -1,5 +1,5 @@
-sudo systemctl stop space-game.service
+docker compose down
 
-sudo cp -r web-frontend/* /usr/share/nginx/html/
+docker compose build
 
-sudo systemctl start space-game.service
+docker compose up -d
