@@ -581,7 +581,7 @@ async def handle_fight(request: CombatRequest):
     for item in ship.installed_items:
         if item.is_weapon:
             fight_items.append(FightItem(ship=ship, item=item))
-    for i in range(20000):
+    for i in range(5001):
         for fight_item in fight_items:
             if fight_item.cooldown == 0.0:
                 log.append(LogEvent(type=EventType.ITEM_USED, contents=fight_item.item.id))
@@ -597,7 +597,7 @@ async def handle_fight(request: CombatRequest):
                 ship.money += round(attacker.bribe * attacker.bribe * random.randint(500,1000))
                 attacker.delete()
 
-        if i == 9999:
+        if i == 5000:
             ship.hitpoints = 0
 
         if ship.hitpoints <= 0:
