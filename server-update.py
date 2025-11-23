@@ -21,7 +21,7 @@ subprocess.run(["docker", "network", "rm", f"space-game-{branch}"])
 
 subprocess.run(["docker", "network", "create", f"space-game-{branch}"])
 
-subprocess.run(["docker", "build", "-f", "Dockerfile", "-t", f"space-game-api-{branch}"])
+subprocess.run(["docker", "build", "-f", "Dockerfile", "-t", f"space-game-api-{branch}", "."])
 
 subprocess.run(["docker", "run", "-d", "--name", f"space-game-db-{branch}", "--network", f"space-game-{branch}", "mongo:latest"])
 subprocess.run(["docker", "run", "-d", "--name", f"space-game-api-{branch}", "--network", f"space-game-{branch}", f"space-game-api-{branch}"])
