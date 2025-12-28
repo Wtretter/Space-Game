@@ -2,7 +2,6 @@ name: SpaceGame-Auto-Updater
 
 on:
     push:
-        branches: [ main ]
 
 jobs:
     update:
