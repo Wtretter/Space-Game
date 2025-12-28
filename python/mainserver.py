@@ -14,6 +14,7 @@ import uvicorn
 import security
 import json
 import random
+import re
 import utils
 
 class LoginRequest(BaseModel):
@@ -372,11 +373,42 @@ async def delete_note(request: NoteRemoveRequest):
 
 @app.post("/register")
 async def register(request: RegistrationRequest):
+    if not check_username_valid(request.username):
+        raise ClientError("username not available")
     try:
         users.insert_one({"username": request.username, "hashed_password": security.hash_new_password(request.password)})
         return "successful registration"
     except pymongo.errors.DuplicateKeyError:
         raise ClientError("username not available")
+
+banned_usernames = {
+    "admin",
+    "system",
+    "spacegame",
+    "space-game",
+    "administrator",
+    "gamemaster",
+    "gm",
+    "dm",
+    "moderator",
+    "mod",
+    "username",
+    "user",
+}
+
+
+def check_username_valid(username: str) -> bool:
+    if username == "":
+        return False
+
+    if not re.fullmatch("[A-Za-z0-9!.~<>_-]+", username):
+        return False
+
+    if username.lower() in banned_usernames:
+        return False
+
+    return True
+    
 
 @app.post("/login")
 async def login(request: LoginRequest):
@@ -656,6 +688,15 @@ def romanize_number(num: int) -> str:
     return result
 
 
+async def broadcast_message(message: str):
+    for username, user in active_users:
+        try:
+            await user.send_text(message)
+        except:
+            active_users.remove((username, user))
+            print(f"user: {username} disconnected")
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -663,19 +704,30 @@ async def websocket_endpoint(websocket: WebSocket):
         token = await websocket.receive_json()
         token = AuthObject(**token)
         token.verify()
-    except:
+    except Exception as e:
+        print("Exception: ", e)
         return
-    print(f"user: {token.username} connected")
+    
     user_socket = (token.username, websocket)
     active_users.add(user_socket)
-    try:
-        while True:
+    print(f"user: {token.username} connected")
+    await broadcast_message(f"{token.username} connected")
+
+    while True:
+        try:
             data = await websocket.receive_text()
-            for username, user in active_users:
-                await user.send_text(f"{token.username}: {data}")
-    except:
-        active_users.remove(user_socket)
-        print(f"user: {token.username} disconnected")
+        
+        except:
+            break
+        if len(data) > 160:
+            await websocket.send_text("SYSTEM: Your chat privileges have been revoked")
+            break
+        await broadcast_message(f"{token.username}: {data}")
+
+    active_users.remove(user_socket)
+    print(f"user: {token.username} disconnected")
+    await broadcast_message(f"{token.username} disconnected")
+
 
 
 

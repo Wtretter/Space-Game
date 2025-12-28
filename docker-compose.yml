@@ -7,12 +7,10 @@ services:
       - "27017:27017"
   api:
     build: .
-    ports:
-      - "42000:42000"
   web-frontend:
     image: nginx
     volumes:
       - "./web-frontend:/usr/share/nginx/html"
       - "./nginx.conf:/etc/nginx/conf.d/default.conf"
     ports:
-      - "8080:80"
+      - "${FRONTEND_PORT}:80"

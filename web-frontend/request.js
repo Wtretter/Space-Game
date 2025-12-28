@@ -54,3 +54,12 @@ export async function init() {
     }
 }
 
+
+export function open_websocket() {
+    const ws = new WebSocket(`${base_url}/ws`);
+    ws.onopen = () => {
+        ws.send(JSON.stringify(token));
+    }
+    return ws;
+}
+

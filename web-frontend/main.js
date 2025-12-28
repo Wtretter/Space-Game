@@ -1,15 +1,13 @@
 import {Future, Sleep} from "./Async.js";
 import {error, register_error_callback} from "./error.js";
-import {Scene, ShipNode, LaserNode, DamageNode } from "./scene.js";
+import {Scene, ShipNode, LaserNode, DamageNode} from "./scene.js";
 import {RandBetween, RandChoice} from "./utils.js";
-import {base_url} from "./request.js";
 import {Vector2} from "./vector.js";
 import {settings} from "./config.js"
-import { init as config_init } from "./config.js";
-import { post_request, try_request, init as request_init } from "./request.js";
+import {init as config_init} from "./config.js";
+import {open_websocket, post_request, try_request, init as request_init} from "./request.js";
 
 
-let token = null;
 let is_typing = false;
 let on_keydown = null;
 
@@ -64,14 +62,6 @@ async function run_away(ship){
         return false;
     }
     
-}
-
-var ws = new WebSocket(`${base_url}/ws`);
-ws.onmessage = function(event) {
-    print_to_chat(event.data);
-};
-ws.onopen = () => {
-    ws.send(JSON.stringify(token));
 }
 
 async function buy(name) {
@@ -135,7 +125,14 @@ function print_to_log(str){
 function print_to_chat(str){
     const chat_element = document.querySelector(".chat");
     const message_element = chat_element.appendChild(document.createElement("p"));
-    message_element.textContent = `[${new Date().toLocaleTimeString()}] ${str}`;
+
+    const timestamp_element = message_element.appendChild(document.createElement("span"));
+    timestamp_element.classList.add("timestamp");
+    timestamp_element.textContent = `[${new Date().toLocaleTimeString()}]`;
+
+    const contents_element = message_element.appendChild(document.createElement("span"));
+    contents_element.textContent = str;
+
     chat_element.scrollTo(0, chat_element.scrollHeight)
 }
 
@@ -176,6 +173,12 @@ window.addEventListener("load", async ()=>{
         return;
     }
    
+    const ws = open_websocket();
+    ws.onmessage = function(event) {
+        print_to_chat(event.data);
+    }
+    globalThis.ws = ws;
+
     liveTimer()
     setInterval(liveTimer, 1000)
 
@@ -318,11 +321,21 @@ window.addEventListener("load", async ()=>{
         if (ev.key == "Enter") {
             ev.preventDefault();
             if (chat_area.value != ""){
-                ws.send(chat_area.value);
+
+                ws.send(chat_area.value.substring(0, 160));
                 chat_area.value = "";
             }
+        } else if (chat_area.value.length >= 160 && ev.key.length == 1 && !ev.ctrlKey && !ev.altKey) {
+            ev.preventDefault();
         }
-    })
+        
+    });
+
+    chat_area.addEventListener("change", () => {
+        if (chat_area.value.length > 160) {
+            chat_area.value = chat_area.value.substring(0, 160);
+        }
+    });
 
     layout_check()
     window.addEventListener("resize", () => {

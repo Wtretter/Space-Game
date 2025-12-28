@@ -21,6 +21,11 @@ async function register(username, password) {
         "body": JSON.stringify({username: username, password: password}),
         "headers": {"Content-Type": "application/json"}
     });
+    console.log(response)
+    if (response.status != 200) {
+        fatal_error(`Username Unavailable`);
+        // return null;
+    }
     return (await response.json())[1];
 }
 

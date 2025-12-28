@@ -31,6 +31,15 @@
     margin-bottom: 2px;
 }
 
+.chat p {
+    word-break: break-word;
+}
+
+.chat .timestamp {
+    color: #f0f8ff;
+    margin-right: 8px;
+}
+
 .ship-info {
     text-align: center;
     display: flex;
