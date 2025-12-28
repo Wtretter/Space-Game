@@ -1,6 +1,7 @@
 echo $GITHUB_REF
 if [[ $GITHUB_REF == "refs/heads/main" ]]; then
-
+    cp example.env .env
+    
     docker compose down
 
     docker compose build
